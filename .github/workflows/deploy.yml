@@ -1,0 +1,81 @@
+name: deploy
+
+# main 에 푸시(또는 수동 실행)하면 빌드 검증 후 서버에 배포.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# 배포가 겹치지 않도록 직렬화 (진행 중이면 끝날 때까지 대기)
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # 시크릿(SERVER_HOST)이 등록돼 있을 때만 배포 단계 실행. 등록 전엔 빌드 검증만(초록).
+    env:
+      HAS_DEPLOY: ${{ secrets.SERVER_HOST != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # ---------- CI 게이트: 백엔드 빌드(컴파일 검증) ----------
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - name: Backend build (bootJar)
+        working-directory: backend
+        run: ./gradlew --no-daemon bootJar -x test
+
+      # ---------- CI 게이트 + 산출물: 프론트 빌드 ----------
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Frontend build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      # ---------- CD: 서버 SSH 준비 ----------
+      - name: Setup SSH
+        if: env.HAS_DEPLOY == 'true'
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      # ---------- CD: 프론트 dist 전송 → /var/www/gotgan ----------
+      - name: Deploy frontend
+        if: env.HAS_DEPLOY == 'true'
+        run: |
+          tar czf dist.tar.gz -C frontend/dist .
+          scp -i ~/.ssh/id_deploy dist.tar.gz "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/tmp/gotgan-dist.tar.gz"
+          ssh -i ~/.ssh/id_deploy "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" '
+            set -e
+            mkdir -p /var/www/gotgan
+            rm -rf /var/www/gotgan/*
+            tar xzf /tmp/gotgan-dist.tar.gz -C /var/www/gotgan
+            rm -f /tmp/gotgan-dist.tar.gz
+          '
+
+      # ---------- CD: 백엔드 git pull + 컨테이너 재빌드 ----------
+      - name: Deploy backend
+        if: env.HAS_DEPLOY == 'true'
+        run: |
+          ssh -i ~/.ssh/id_deploy "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" '
+            set -e
+            cd /root/gotgan
+            git fetch origin main
+            git reset --hard origin/main
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+            docker image prune -f
+          '
