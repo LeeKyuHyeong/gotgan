@@ -84,12 +84,25 @@ EOF
 git clone github-gotgan:LeeKyuHyeong/gotgan.git /root/gotgan   # SSH URL 로 클론
 ```
 
-### 업데이트 배포 (이후)
+### 업데이트 배포 — CI/CD 자동화 (`.github/workflows/deploy.yml`)
+`main` 푸시(또는 Actions 수동 실행) → 러너에서 백엔드 bootJar·프론트 빌드(CI 게이트) → 서버 SSH로:
+프론트 `dist`를 `/var/www/gotgan`에 전송, 백엔드는 `git reset --hard origin/main` + `docker compose up -d --build`.
+- **전제(1회 부트스트랩)**: 서버에 `/root/gotgan` 클론 + `.env.prod` 존재 + nginx/certbot 설정 완료. CD는 *코드 업데이트*만 담당(nginx/cert 설정은 1회 수동).
+- **필요 시크릿**(GitHub 리포 Settings > Secrets and variables > Actions):
+  - `SERVER_SSH_KEY` — 배포용 SSH 개인키(아래 생성), `SERVER_HOST`=`175.125.21.245`, `SERVER_USER`=`root`
+  - 시크릿 없으면 워크플로는 빌드 검증만 하고 배포 단계는 스킵(초록).
+- **배포 키 생성(서버에서 1회)** — 개인키는 외부 노출 없이 서버에서 만들어 GitHub Secret에만 붙여넣기:
+  ```bash
+  ssh-keygen -t ed25519 -f ~/.ssh/gotgan_ci -N "" -C "github-actions"
+  cat ~/.ssh/gotgan_ci.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys
+  cat ~/.ssh/gotgan_ci   # 전체(-----BEGIN~END-----)를 SERVER_SSH_KEY 시크릿에 붙여넣기
+  ```
+
+### 수동 업데이트 (CI/CD 없이, 폴백)
 ```bash
 cd /root/gotgan && git pull
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build         # 백엔드
-cd frontend && npm run build && sudo cp -r dist/* /var/www/gotgan/                    # 프론트(또는 로컬빌드+scp)
-# .env.prod 가 바뀐 경우에만 다시 scp
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+cd frontend && npm run build && cp -r dist/* /var/www/gotgan/
 ```
 
 ## 외부 콘솔/방화벽 수동 작업 (코드로 불가 — 직접 처리 필요)
