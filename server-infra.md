@@ -159,5 +159,6 @@ cd frontend && npm run build && cp -r dist/* /var/www/gotgan/
 
 ## 비밀 관리 원칙
 - 커밋 금지: `.env.prod`(서버 전용), `frontend/.env.local`(`.gitignore` 등록됨).
+- ⚠️ `.env.prod`는 **서버 `/root/gotgan/.env.prod`가 유일본**(2026-06-04 로컬 사본 삭제). 분실 시 전부 재발급으로 복구(DB 비번 ALTER, JWT_SECRET 교체=전원 재로그인, VAPID 재생성=재구독, 카카오 시크릿 콘솔 재발급). 백업하려면 `scp root@175.125.21.245:/root/gotgan/.env.prod <로컬>`.
 - `frontend/.env.production`은 **커밋 대상** — `VITE_*` 값(카카오 REST/JS 키)은 브라우저에 노출되는 공개 키라 시크릿이 아니고, CI가 이 파일로 운영 빌드함.
 - Client Secret·JWT_SECRET·DB 비번만 진짜 비밀 — `.env.prod` env 주입 전용.
