@@ -68,7 +68,10 @@ export function useCreateHousehold() {
       (await api.post<HouseholdResponse>('/api/households', body)).data,
     onSuccess: (data) => {
       setHouseholdId(data.id)
-      qc.invalidateQueries({ queryKey: ['me'] })
+      // ['me']는 이 시점에 비활성(구독자 없음)이라 refetchType: 'all' 없이는 stale 표시만 되고
+      // 재조회가 안 됨 → 홈 진입 시 옛 needsOnboarding=true 캐시로 온보딩에 다시 갇히는 버그.
+      // Promise를 반환해 재조회 완료 후에 페이지 이동(onSuccess 체인)이 일어나게 한다.
+      return qc.invalidateQueries({ queryKey: ['me'], refetchType: 'all' })
     },
   })
 }
@@ -80,7 +83,7 @@ export function useJoinHousehold() {
       (await api.post<HouseholdResponse>('/api/households/join', body)).data,
     onSuccess: (data) => {
       setHouseholdId(data.id)
-      qc.invalidateQueries({ queryKey: ['me'] })
+      return qc.invalidateQueries({ queryKey: ['me'], refetchType: 'all' }) // 가구 생성과 동일한 이유
     },
   })
 }

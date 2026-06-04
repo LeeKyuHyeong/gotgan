@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { useMe, useUpdateMe } from '../api/queries'
 import { AppHeader, Button, ErrorText, LoadingScreen } from '../components/ui'
 import { errorMessage } from '../api/client'
@@ -12,6 +12,9 @@ export default function OnboardingPage() {
   const [err, setErr] = useState<string | null>(null)
 
   if (isLoading || !me) return <LoadingScreen />
+
+  // 이미 가구가 있으면 온보딩에 머무를 이유가 없음 — stale 캐시로 잘못 들어와도 홈으로 복귀.
+  if (!me.needsOnboarding) return <Navigate to="/" replace />
 
   const hasName = !!me.user.nickname?.trim()
 
