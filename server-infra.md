@@ -13,6 +13,18 @@
 | DB명 / charset | `stock` / utf8mb4 (unicode_ci) |
 | 관리 IP (방화벽 `stock_db` 허용) | `125.131.87.14`, `121.165.29.66`, `14.47.28.75` |
 
+## 카카오 앱 구성 (로컬/운영 분리)
+| | 로컬 `kh_stock_local` | 운영 `kh_stock` |
+|---|---|---|
+| REST API 키 | `865af4cbbc46547691915a3aed45ec79` (application.yml 기본값) | `94ec6009e0bea91aa7510478c762083d` |
+| JavaScript 키 (카톡 공유) | `frontend/.env.local` | `91fc022753da03ec6be3ea90fef6db99` |
+| Redirect URI | `http://localhost:5173/oauth/kakao/callback` | `https://gotgan.kyuhyeong.com/oauth/kakao/callback` |
+| 플랫폼 > Web 도메인 | `http://localhost:5173` | `https://gotgan.kyuhyeong.com` |
+| 키 주입 위치 | `frontend/.env.local`(미커밋) | `frontend/.env.production`(커밋, CI 빌드가 사용) + 서버 `.env.prod`(REST키/Client Secret) |
+
+- REST/JS 키는 **공개 키**(브라우저 노출 전제) — 커밋 OK. **Client Secret·Admin 키만 비밀**(`.env.prod` env 주입, 커밋 금지).
+- 주의: `application.yml`의 REST키 기본값은 **로컬 앱** 키 — 운영은 `.env.prod`의 `KAKAO_REST_API_KEY`가 반드시 override 해야 함(설정됨).
+
 ## 아키텍처
 ```
 브라우저 ──https──▶ 호스트 nginx (443, certbot)
@@ -105,23 +117,32 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 cd frontend && npm run build && cp -r dist/* /var/www/gotgan/
 ```
 
-## 외부 콘솔/방화벽 수동 작업 (코드로 불가 — 직접 처리 필요)
-- [ ] **DNS**: `gotgan.kyuhyeong.com` A레코드 → `175.125.21.245`
-- [ ] **Cafe24 방화벽**: `stock_db` 규칙에 관리 IP 3개만 3312 허용. 8083은 외부 차단(루프백 바인딩으로 이미 안전하나 규칙으로도 명시).
-- [ ] **카카오 콘솔**:
-  - 카카오 로그인 > Redirect URI 에 `https://gotgan.kyuhyeong.com/oauth/kakao/callback` 추가 (현재 `localhost:5173`만)
-  - 플랫폼 > Web > 사이트 도메인에 `https://gotgan.kyuhyeong.com` 등록 (JS SDK 공유 동작 조건)
-- [ ] **JWT_SECRET / DB 비번 / 카카오 시크릿**을 `.env.prod` 에 실제 값으로 채움
-- [ ] (권장) 평문 노출됐던 카카오 **Client Secret 재발급**(로테이션) — 기존 값이 application.yml 평문이었음
+## 외부 콘솔/방화벽 수동 작업 — ✅ 전부 완료 (2026-06-04, 운영 가동 중)
+- [x] **DNS**: `gotgan.kyuhyeong.com` A레코드 → `175.125.21.245`
+- [x] **Cafe24 방화벽**: `stock_db` 규칙에 관리 IP 3개만 3312 허용 (DBeaver 접속 확인됨)
+- [x] **카카오 콘솔**: 운영 전용 앱 `kh_stock` 신규 생성 — Redirect URI + Web 도메인 등록 (위 '카카오 앱 구성' 표)
+- [x] **`.env.prod` 실제 비밀 주입** (JWT_SECRET / DB 비번 / 운영 앱 Client Secret)
+- [x] **certbot** 실행 — HTTPS 가동
+- (해소) 평문 노출됐던 Client Secret은 **로컬 앱**(kh_stock_local) 것 — 운영은 별도 앱이라 영향 없음. 로컬 앱 시크릿 재발급은 선택.
 
-## TODO 5번 매핑
+## 운영 수칙 (실수 방지 — 이 세션에서 배운 것)
+1. **서버에서 직접 수정해도 되는 파일은 untracked `.env.prod` 하나뿐.**
+   추적 파일(소스, `frontend/.env.production` 등)을 서버에서 고쳐도 ① 프론트는 GitHub Actions 러너에서 빌드되므로 효과 없음 ② 다음 배포의 `git reset --hard origin/main`에 덮어써짐.
+2. **MariaDB `MARIADB_*` env는 볼륨 최초 생성 시에만 적용.** 이후 `.env.prod` 비번을 바꿔도 실제 DB 비번은 안 바뀜.
+   비번 불일치 시: SQL로 `ALTER USER` 하거나, 데이터 포기 가능하면 `docker compose -f docker-compose.prod.yml --env-file .env.prod down -v && ... up -d --build` 로 재초기화(스키마는 앱 기동 시 Flyway가 재생성).
+3. **DB 재초기화(또는 데이터 삭제) 후엔 사용자 브라우저의 localStorage가 유령 데이터가 됨**(`stock.token`, `stock.householdId`) — '불러오는 중' 멈춤의 원인. 프론트에 에러 화면+로그아웃 탈출구 있음(`LoadErrorScreen`).
+4. **Windows에서 만든 실행 스크립트는 exec bit 누락**(CI `Permission denied`) → `git update-index --chmod=+x <file>` 후 커밋.
+5. DBeaver 운영 접속: `175.125.21.245:3312`, user `root`, 비번은 `.env.prod`의 `DB_ROOT_PASSWORD`(볼륨 init 시점 값).
+
+## TODO 5번 매핑 — ✅ 완료 (배포 가동 중)
 - [x] 시크릿 환경변수 분리 (application.yml `KAKAO_CLIENT_SECRET` 등 env화)
 - [x] `docker-compose.prod.yml` + `.env.prod`(템플릿/gitignore) — 앱 `127.0.0.1:8083`, DB `stock-db:3306`
 - [x] nginx conf (80 블록 → certbot 443 자동)
 - [x] 운영 redirect/CORS 를 env로 주입 가능하게 (`KAKAO_REDIRECT_URI`, `CORS_ORIGINS`)
-- [ ] **(서버/콘솔 작업)** DNS·방화벽·카카오 콘솔 등록·certbot 실행·실제 비밀 주입 — 위 체크리스트
+- [x] **(서버/콘솔 작업)** DNS·방화벽·카카오 콘솔 등록·certbot 실행·실제 비밀 주입 — 위 체크리스트
 - [ ] (선택) Hibernate `@Filter` 자동 테넌트 격리 하드닝 — 현재 서비스 계층 수동 격리
 
 ## 비밀 관리 원칙
-- `.env.prod`, `frontend/.env.production`(실제), `.env.local` 은 커밋 금지(`.gitignore` 등록됨).
-- `VITE_*` 값(카카오 REST/JS 키)은 브라우저에 노출되는 **공개 키** — 시크릿 아님. Client Secret·JWT_SECRET·DB 비번만 진짜 비밀.
+- 커밋 금지: `.env.prod`(서버 전용), `frontend/.env.local`(`.gitignore` 등록됨).
+- `frontend/.env.production`은 **커밋 대상** — `VITE_*` 값(카카오 REST/JS 키)은 브라우저에 노출되는 공개 키라 시크릿이 아니고, CI가 이 파일로 운영 빌드함.
+- Client Secret·JWT_SECRET·DB 비번만 진짜 비밀 — `.env.prod` env 주입 전용.

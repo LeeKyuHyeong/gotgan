@@ -1,8 +1,8 @@
-# 우리집 재고 — 백엔드/DB 스키마 (확정안)
+# 곳간 — 백엔드/DB 스키마 (확정안)
 
-> 대상: MariaDB 10.6+, **포트 3312**, charset **utf8mb4**(이모지 저장 필수)
+> 대상: MariaDB, DB명 `stock`, charset **utf8mb4**(이모지 저장 필수). 포트: 로컬 3306 / 운영 3312(외부 관리용).
+> 이 폴더의 SQL은 **참조용** — 실제 스키마는 Flyway(`backend/src/main/resources/db/migration/V1~V3`)가 소유·적용.
 > DDL: [`01_schema.sql`](01_schema.sql) · 시드: [`02_seed_categories.sql`](02_seed_categories.sql) · 셋업: [`00_setup.sql`](00_setup.sql)
-> 로컬 DB는 직접 생성 예정. 운영 DB는 추후 함께 생성.
 
 ---
 
