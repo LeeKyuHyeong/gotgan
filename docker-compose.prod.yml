@@ -6,6 +6,7 @@ services:
     container_name: stock-db
     restart: unless-stopped
     environment:
+      TZ: Asia/Seoul  # 미설정 시 UTC — 로그·NOW() 가 KST-9h 로 어긋남
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MARIADB_DATABASE: stock
       MARIADB_USER: ${DB_USERNAME}
@@ -33,6 +34,7 @@ services:
       stock-db:
         condition: service_healthy
     environment:
+      TZ: Asia/Seoul  # JVM 기본존도 이걸 따름 — LocalDate.now() 존 미지정 호출 보호
       SPRING_PROFILES_ACTIVE: prod
       # 앱→DB 는 컨테이너명으로 접속(3306). 3312는 호스트 외부접속용일 뿐.
       DB_URL: jdbc:mariadb://stock-db:3306/stock?characterEncoding=utf8mb4&serverTimezone=Asia/Seoul

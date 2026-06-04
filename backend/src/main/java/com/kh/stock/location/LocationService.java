@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -21,6 +22,9 @@ public class LocationService {
 
     /** 곧 만료 기준: 오늘부터 D-3 이내. */
     private static final int EXPIRING_DAYS = 3;
+
+    /** 컨테이너 기본존(UTC)에 휘둘리지 않게 존 명시 — ExpiryPushScheduler 와 동일 기준. */
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private final StorageLocationRepository locationRepository;
     private final ItemRepository itemRepository;
@@ -41,7 +45,7 @@ public class LocationService {
         List<StorageLocation> locations = locationRepository.findByHouseholdIdOrderBySortOrderAsc(hid);
         List<Item> items = itemRepository.findActiveByHousehold(hid);
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(KST);
         LocalDate soonEnd = today.plusDays(EXPIRING_DAYS);
 
         Map<Long, Long> countByLoc = items.stream()
