@@ -62,7 +62,9 @@
 - [x] 곧만료 **외부 푸시** — **구현 완료 (2026-06-04, 표준 Web Push/VAPID)**. 매일 아침 9시(KST) 가구별 D-3 요약을 구독 기기 전부에 발송.
   - 백엔드: `push_subscription`(Flyway V4, endpoint upsert) · `/api/push`(vapid-public-key/subscriptions POST·DELETE) · `ExpiryPushScheduler`(@Scheduled 9시, 죽은 구독 410 자동정리) · `WebPushSender`(web-push 5.1.1 + BC jdk18on). VAPID 키: 로컬 기본값 커밋(개발용), 운영은 `.env.prod` 별도 키.
   - 프론트: `public/sw.js`(push/notificationclick) · `manifest.webmanifest`+아이콘(PWA, iOS 필수) · `src/lib/push.ts` · 내정보 "유통기한 임박 알림" 토글(iOS는 홈 화면 추가 안내).
-  - [ ] 운영 검증: 서버 `.env.prod`에 운영 VAPID 키 추가 후 배포 → 실기기 토글 ON → 9시 수신 확인 (또는 만료 임박 아이템 만들어 다음날 확인)
+  - 서버 `.env.prod` 운영 VAPID 키 주입 + 재배포 완료, 실기기(크롬) 토글 ON 완료 (2026-06-04)
+  - 인앱 브라우저(네이버/카톡)는 푸시 API 없음 → 토글 시 안내 메시지로 처리. 알림은 구독한 브라우저(크롬)가 받으므로 크롬 1회 ON 으로 충분.
+  - [ ] **운영 검증 잔여**: 다음 9시(KST)에 실제 수신 확인 — D-3 이내 만료 아이템이 1개 이상 있어야 발송됨. 미수신 시 `docker logs stock-app | grep 곧만료`
 - [x] 분류 **색상 부여** → **지금 구현** (2026-06-03, 아래 7번 참고).
 - [ ] 아이템 **사진 첨부** → **v2 보류**. 파일 업로드·저장소·썸네일 인프라 필요. 텍스트+이모지로 v1 충분.
 
@@ -71,6 +73,12 @@
 - [x] **백엔드**: `Category.color` + 응답(`CategoryResponse`/`AdminCategoryResponse`/`ItemResponse.categoryColor`) + 요청(`Create/Update/ApproveRequest`에 `@Pattern ^$|^#[0-9a-fA-F]{6}$`). 빈값=색 제거. 컴파일 검증.
 - [x] **프론트**: `src/lib/colors.ts`(팔레트+`tintBg`). 어드민 추가/수정·승인에 색상 피커, ItemRow 아이콘 배경 틴트, CategoryPicker 칩·ItemForm 선택분류 색 점. 빌드 검증.
 - [ ] (DB 미가동으로 e2e 미검증) 8083+DB 기동 후 시드 색 표시·어드민 색 변경 반영 확인 필요.
+
+### 8. 세션 유지/자동 로그인  ✅ 완료 (2026-06-04)
+- 배경: 모바일(특히 네이버/카톡 인앱 브라우저)에서 접속마다 카카오 로그인 버튼을 눌러야 했음 — 인앱 브라우저가 localStorage(JWT)를 수시로 날리는 게 원인(1일 TTL 문제 아님).
+- [x] **JWT_TTL 30일** — 운영 `.env.prod`에서 `JWT_TTL=2592000` 적용(env 변경만, 코드 무관).
+- [x] **무클릭 자동 로그인** — 토큰 없으면 `prompt=none&state=silent` 카카오 인가 자동 시도, 세션 있으면 클릭 없이 복귀. 로그아웃/실패 시 sessionStorage skip 플래그 + 60초 재시도 금지로 루프 방지. (`LoginPage`/`KakaoCallbackPage`/`lib/auth.ts`)
+- 한계: 인앱 브라우저는 카카오 쿠키까지 날려 silent 도 실패 가능 → 사용자 안내는 **PWA 설치**(크롬 → 홈 화면에 추가 = WebAPK, manifest+sw 요건 충족됨). 설치 시 로그인 화면 자체를 안 봄.
 
 ---
 

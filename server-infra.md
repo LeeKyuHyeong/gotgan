@@ -129,9 +129,16 @@ cd frontend && npm run build && cp -r dist/* /var/www/gotgan/
 
 ## Web Push (곧만료 알림, 2026-06-04 추가)
 - 표준 Web Push(VAPID) — FCM/알림톡 불필요, 서버가 직접 발송. 매일 9시(KST) 가구별 D-3 요약.
-- **서버 1회 작업**: `.env.prod`에 운영 VAPID 키 3줄 추가(`VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`PUSH_SUBJECT`) 후 재배포. 키 생성: `npx web-push generate-vapid-keys`. 로컬 개발 키(application.yml 기본값)와 반드시 분리.
+- **서버 작업 완료(2026-06-04)**: `.env.prod`에 운영 VAPID 키 3줄(`VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`PUSH_SUBJECT`) 주입 + 재배포됨. 키 생성은 `npx web-push generate-vapid-keys`, 로컬 개발 키(application.yml 기본값)와 분리 운영.
 - iOS는 사용자가 홈 화면에 추가(PWA)해야 알림 수신 가능 — 내정보 토글에 안내 문구 있음.
 - 구독은 기기(브라우저) 단위 `push_subscription` 테이블. 죽은 구독(404/410)은 발송 시 자동 삭제.
+- **알림은 "구독을 켠 브라우저"가 받음** — 크롬에서 한 번 켜두면 평소 다른 브라우저로 사이트를 써도 알림은 크롬이 OS 레벨로 띄움. 인앱 브라우저(네이버/카톡)는 푸시 API 자체가 없어 토글 불가(누르면 안내 메시지).
+- 미수신 디버깅: `docker logs stock-app | grep 곧만료` → `곧만료 푸시 완료 — 가구 N곳, 발송 N건` 로그 확인. `VAPID 키 미설정` 로그면 env 미적용(`up -d --force-recreate stock-app`).
+
+## 세션 유지 / 자동 로그인 (2026-06-04)
+- **JWT_TTL=2592000(30일)** — 서버 `.env.prod`에서 변경 적용됨 (기본 1일은 로컬용).
+- **무클릭 자동 로그인**: 토큰이 없으면 로그인 화면이 카카오 `prompt=none` 인가를 조용히 시도(state=silent) → 카카오 세션 있으면 버튼 클릭 없이 복귀. 실패·명시적 로그아웃 시 sessionStorage skip 플래그로 루프 방지(+60초 재시도 금지).
+- 배경: 인앱 브라우저(네이버/카톡)는 localStorage(JWT)와 쿠키를 수시로 날림 → TTL 연장만으론 부족. 인앱은 카카오 쿠키까지 날아가 silent 도 실패할 수 있음 — 근본 해법은 **PWA 설치**(크롬 → 홈 화면에 추가, WebAPK). manifest+sw.js 요건은 푸시 작업 때 충족됨.
 
 ## 운영 수칙 (실수 방지 — 이 세션에서 배운 것)
 1. **서버에서 직접 수정해도 되는 파일은 untracked `.env.prod` 하나뿐.**
