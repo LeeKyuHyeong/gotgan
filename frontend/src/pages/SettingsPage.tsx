@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useMe, useUpdateMe } from '../api/queries'
-import { clearAuth, getHouseholdId, setHouseholdId } from '../lib/auth'
+import { clearAuth, getHouseholdId, setHouseholdId, skipSilentLogin } from '../lib/auth'
 import { disablePush, enablePush, getPushSubscription, isIos, isStandalone } from '../lib/push'
 import { errorMessage } from '../api/client'
 import { ErrorText, LoadingScreen, Pill } from '../components/ui'
@@ -70,6 +70,7 @@ export default function SettingsPage() {
 
   function logout() {
     clearAuth()
+    skipSilentLogin() // 명시적 로그아웃 — 로그인 화면이 자동 재로그인하지 않게
     navigate('/login', { replace: true })
   }
 

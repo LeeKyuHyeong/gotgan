@@ -1,10 +1,29 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDevLogin } from '../api/queries'
-import { getPendingInviteCode, setHouseholdId } from '../lib/auth'
-import { Button, ErrorText } from '../components/ui'
+import {
+  canTrySilentLogin,
+  clearSilentLoginSkip,
+  getPendingInviteCode,
+  isLoggedIn,
+  markSilentLoginAttempt,
+  setHouseholdId,
+} from '../lib/auth'
+import { Button, ErrorText, LoadingScreen } from '../components/ui'
 import { errorMessage } from '../api/client'
 import type { LoginResponse } from '../api/types'
+
+const KAKAO_KEY = import.meta.env.VITE_KAKAO_REST_API_KEY
+
+/** silent=true 면 prompt=none — 카카오 세션이 있으면 동의창 없이 즉시 code 발급, 없으면 error 로 복귀. */
+function kakaoAuthorizeUrl(silent: boolean): string {
+  const redirect = `${location.origin}/oauth/kakao/callback`
+  return (
+    `https://kauth.kakao.com/oauth/authorize?response_type=code` +
+    `&client_id=${KAKAO_KEY}&redirect_uri=${encodeURIComponent(redirect)}` +
+    (silent ? `&prompt=none&state=silent` : '')
+  )
+}
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -12,7 +31,19 @@ export default function LoginPage() {
   const [nickname, setNickname] = useState('')
   const [err, setErr] = useState<string | null>(null)
 
+  // 무클릭 자동 로그인: 토큰이 없어도(인앱 브라우저가 localStorage 를 날리는 경우 등)
+  // 카카오 세션이 남아있으면 버튼 없이 바로 재로그인. 실패 시 callback 이 skip 플래그를 켜고 돌아온다.
+  const [silentTrying] = useState(() => !!KAKAO_KEY && !isLoggedIn() && canTrySilentLogin())
+  useEffect(() => {
+    if (silentTrying) {
+      markSilentLoginAttempt()
+      location.replace(kakaoAuthorizeUrl(true))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   function afterLogin(data: LoginResponse) {
+    clearSilentLoginSkip() // 수동 로그인 성공 → 다음부터 자동 로그인 재개
     if (getPendingInviteCode()) {
       navigate('/onboarding/join', { replace: true }) // 초대 링크 경유 — 합류 화면으로 직행
     } else if (data.needsOnboarding) {
@@ -24,16 +55,15 @@ export default function LoginPage() {
   }
 
   function kakaoLogin() {
-    const key = import.meta.env.VITE_KAKAO_REST_API_KEY
-    if (!key) {
+    if (!KAKAO_KEY) {
       setErr('카카오 키(VITE_KAKAO_REST_API_KEY)가 설정되지 않았습니다. 아래 개발용 로그인을 사용하세요.')
       return
     }
-    const redirect = `${location.origin}/oauth/kakao/callback`
-    location.href =
-      `https://kauth.kakao.com/oauth/authorize?response_type=code` +
-      `&client_id=${key}&redirect_uri=${encodeURIComponent(redirect)}`
+    location.href = kakaoAuthorizeUrl(false)
   }
+
+  // 자동 시도 중엔 로그인 UI 깜빡임 없이 로딩만 (곧 카카오로 redirect 됨)
+  if (silentTrying) return <LoadingScreen />
 
   function doDevLogin() {
     setErr(null)

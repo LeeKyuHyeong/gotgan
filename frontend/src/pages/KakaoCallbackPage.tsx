@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useKakaoLogin } from '../api/queries'
-import { getPendingInviteCode, setHouseholdId } from '../lib/auth'
+import { clearSilentLoginSkip, getPendingInviteCode, setHouseholdId, skipSilentLogin } from '../lib/auth'
 import { errorMessage } from '../api/client'
 import { Button } from '../components/ui'
 
@@ -18,6 +18,13 @@ export default function KakaoCallbackPage() {
     const code = search.get('code')
     const kakaoError = search.get('error')
     if (kakaoError) {
+      if (search.get('state') === 'silent') {
+        // 자동 로그인(prompt=none) 실패 = 카카오 세션 없음 — 에러 없이 로그인 화면으로.
+        // skip 플래그를 켜서 로그인 화면이 또 자동 시도하는 루프를 막는다.
+        skipSilentLogin()
+        window.location.replace('/login')
+        return
+      }
       setErr('카카오 로그인이 취소되었습니다.')
       return
     }
@@ -33,6 +40,7 @@ export default function KakaoCallbackPage() {
     kakaoLogin
       .mutateAsync({ code })
       .then((data) => {
+        clearSilentLoginSkip() // 로그인 성공 → 자동 로그인 재개
         if (getPendingInviteCode()) {
           // 초대 링크로 들어온 경우: 온보딩/홈 대신 합류 화면으로 직행(코드 자동 입력)
           window.location.replace('/onboarding/join')

@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { clearAuth } from '../lib/auth'
+import { clearAuth, skipSilentLogin } from '../lib/auth'
 
 /** 전체 화면 로딩. */
 export function LoadingScreen({ label = '불러오는 중…' }: { label?: string }) {
@@ -27,6 +27,7 @@ export function LoadErrorScreen({ onRetry }: { onRetry: () => void }) {
           variant="ghost"
           onClick={() => {
             clearAuth() // 옛 토큰/가구ID가 원인일 수 있으니 전부 비우고 재로그인
+            skipSilentLogin() // 탈출구 — 자동 재로그인 없이 수동 로그인 화면으로
             window.location.replace('/login')
           }}
         >
