@@ -1,7 +1,7 @@
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { isLoggedIn, getHouseholdId, setHouseholdId } from './lib/auth'
 import { useMe } from './api/queries'
-import { LoadingScreen } from './components/ui'
+import { LoadErrorScreen, LoadingScreen } from './components/ui'
 import { BottomTabs } from './components/BottomTabs'
 import LoginPage from './pages/LoginPage'
 import KakaoCallbackPage from './pages/KakaoCallbackPage'
@@ -36,9 +36,9 @@ function RequireAdmin() {
 
 /** 로그인됐지만 가구 컨텍스트가 필요한 화면용. 온보딩 안 됐으면 온보딩으로. */
 function RequireHousehold() {
-  const { data: me, isLoading, isError } = useMe()
+  const { data: me, isLoading, isError, refetch } = useMe()
   if (isLoading) return <LoadingScreen />
-  if (isError || !me) return <LoadingScreen label="다시 시도 중…" />
+  if (isError || !me) return <LoadErrorScreen onRetry={() => refetch()} />
   if (me.needsOnboarding) return <Navigate to="/onboarding" replace />
 
   // 현재 가구가 안 잡혀있으면 첫 가구로 설정

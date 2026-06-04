@@ -1,11 +1,38 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { clearAuth } from '../lib/auth'
 
 /** 전체 화면 로딩. */
 export function LoadingScreen({ label = '불러오는 중…' }: { label?: string }) {
   return (
     <div className="flex h-screen items-center justify-center text-ink-soft text-sm">
       {label}
+    </div>
+  )
+}
+
+/** 전체 화면 에러. useMe 등 필수 조회 실패 시 무한 로딩에 갇히지 않게 탈출구 제공. */
+export function LoadErrorScreen({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="flex h-screen flex-col items-center justify-center px-6 text-center">
+      <div className="mb-3 text-3xl">😢</div>
+      <p className="text-sm leading-relaxed text-ink-soft">
+        정보를 불러오지 못했어요.
+        <br />
+        잠시 후 다시 시도해주세요.
+      </p>
+      <div className="mt-6 w-full max-w-xs space-y-2.5">
+        <Button onClick={onRetry}>다시 시도</Button>
+        <Button
+          variant="ghost"
+          onClick={() => {
+            clearAuth() // 옛 토큰/가구ID가 원인일 수 있으니 전부 비우고 재로그인
+            window.location.replace('/login')
+          }}
+        >
+          로그아웃 후 다시 로그인
+        </Button>
+      </div>
     </div>
   )
 }
