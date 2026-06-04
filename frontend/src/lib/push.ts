@@ -10,6 +10,11 @@ export function isIos(): boolean {
   return /iPhone|iPad|iPod/.test(navigator.userAgent)
 }
 
+/** 카카오톡/인스타 등 인앱 브라우저 — 푸시 API 자체가 없음. */
+export function isInAppBrowser(): boolean {
+  return /KAKAOTALK|Instagram|FBAN|FBAV|NAVER/i.test(navigator.userAgent)
+}
+
 /** iOS 푸시는 홈 화면에 추가된 standalone 모드에서만 가능. */
 export function isStandalone(): boolean {
   return (
@@ -33,6 +38,9 @@ export async function getPushSubscription(): Promise<PushSubscription | null> {
 /** 권한 요청 → 구독 → 서버 등록. 실패 시 사용자에게 보여줄 메시지로 throw. */
 export async function enablePush(): Promise<void> {
   if (!pushSupported()) {
+    if (isInAppBrowser()) {
+      throw new Error('카카오톡 등 앱 안 브라우저에서는 알림을 켤 수 없어요. Chrome이나 Safari로 열어주세요.')
+    }
     throw new Error(
       isIos() && !isStandalone()
         ? '아이폰은 Safari 공유 버튼 → "홈 화면에 추가" 후, 그 앱에서 켤 수 있어요.'

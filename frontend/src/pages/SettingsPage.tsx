@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useMe, useUpdateMe } from '../api/queries'
 import { clearAuth, getHouseholdId, setHouseholdId } from '../lib/auth'
-import { disablePush, enablePush, getPushSubscription, pushSupported, isIos, isStandalone } from '../lib/push'
+import { disablePush, enablePush, getPushSubscription, isIos, isStandalone } from '../lib/push'
 import { errorMessage } from '../api/client'
 import { ErrorText, LoadingScreen, Pill } from '../components/ui'
 
@@ -161,9 +161,10 @@ export default function SettingsPage() {
                 )}
               </div>
             </div>
+            {/* 미지원 환경에서도 비활성화하지 않음 — 눌렀을 때 enablePush 가 이유를 메시지로 던짐 */}
             <button
               onClick={togglePush}
-              disabled={pushBusy || !pushSupported()}
+              disabled={pushBusy}
               aria-checked={pushOn}
               role="switch"
               className={`relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-40 ${pushOn ? 'bg-brand' : 'bg-line'}`}
