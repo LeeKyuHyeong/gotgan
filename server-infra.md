@@ -19,11 +19,13 @@
 | REST API 키 | `865af4cbbc46547691915a3aed45ec79` (application.yml 기본값) | `94ec6009e0bea91aa7510478c762083d` |
 | JavaScript 키 (카톡 공유) | `91fc022753da03ec6be3ea90fef6db99` (`frontend/.env.local`) | `7ba37c16c76e2a43c04e10b750a7b9b3` |
 | Redirect URI | `http://localhost:5173/oauth/kakao/callback` | `https://gotgan.kyuhyeong.com/oauth/kakao/callback` |
-| 플랫폼 > Web 도메인 | `http://localhost:5173` | `https://gotgan.kyuhyeong.com` |
+| 도메인 등록 ①: 제품 링크 관리 > 웹 도메인 | `http://localhost:5173` | `https://gotgan.kyuhyeong.com` |
+| 도메인 등록 ②: 플랫폼 키 > JavaScript 키 > **JavaScript SDK 도메인** | `http://localhost:5173` | `https://gotgan.kyuhyeong.com` |
 | 키 주입 위치 | `frontend/.env.local`(미커밋) | `frontend/.env.production`(커밋, CI 빌드가 사용) + 서버 `.env.prod`(REST키/Client Secret) |
 
 - REST/JS 키는 **공개 키**(브라우저 노출 전제) — 커밋 OK. **Client Secret·Admin 키만 비밀**(`.env.prod` env 주입, 커밋 금지).
 - 주의: `application.yml`의 REST키 기본값은 **로컬 앱** 키 — 운영은 `.env.prod`의 `KAKAO_REST_API_KEY`가 반드시 override 해야 함(설정됨).
+- **카톡 공유 4019 트러블슈팅 (2026-06-04 해결)**: 신규 콘솔은 도메인 등록이 **두 군데**(위 ①②) — ①은 공유 *메시지 링크*의 이동 허용, ②는 *JS SDK 실행* 허용. ②가 빠지면 공유 팝업에서 4019(`domain mismatched`). 진단법: 실패 팝업 URL의 `app_key=`로 어느 앱 키가 쓰였는지, base64 `error=` 디코드로 원인 확인. PC 데브툴 모바일 에뮬레이션에선 `intent://kakaolink` 실행 불가 에러가 나는 게 정상 — 실기기로 테스트.
 
 ## 아키텍처
 ```

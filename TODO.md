@@ -38,7 +38,7 @@
 - [ ] 카카오 동의항목(닉네임/프로필) 설정 or 위 입력으로 대체 (위 입력으로 대체 가능 — 동의항목은 선택)
 - [x] 초대코드 **카카오톡 공유 버튼** 실제 연동(JS SDK) (2026-06-03) — InvitePage에 '카카오톡으로 초대하기' 버튼. `src/lib/kakao.ts`가 JS SDK(v2.8.1, SRI 핀) 동적로드+`Kakao.Share.sendDefault`(text). 키 미설정 시 Web Share API→복사로 자동 대체. 운영 JS 키 주입 완료(`frontend/.env.production`).
 - [x] **카톡 공유 딥링크 합류 플로우** (2026-06-04) — 공유 메시지의 '곳간에서 합류하기' 버튼 → `/join?code=XX`(공개 라우트, `InviteLandingPage`) → 코드를 `stock.pendingInviteCode`에 보관 → (비로그인이면 카카오 로그인 경유) → 합류 화면에 **코드 자동 입력** → 원탭 합류. 보관 코드는 1회용(화면 진입 시 소거).
-  - [ ] 운영 e2e 확인: 카톡 공유 발송 → 수신자 링크 → 로그인 → 자동입력 합류 (배포 후 실기기 테스트)
+  - [x] 운영 e2e 확인 완료 (2026-06-04, 실기기) — 카톡 공유 발송 → 버튼 → 자동입력 합류. 트러블슈팅 기록은 [`server-infra.md`](server-infra.md) 카카오 앱 구성/운영 수칙 참고.
 - [x] optimistic update / pull-to-refresh 등 UX 다듬기 (2026-06-03)
   - 수량 증감(`useAdjustItem`) **낙관적 갱신**: 클릭 즉시 캐시 반영, 실패 시 inverse-delta 롤백, 연타 중 마지막만 서버 동기화(`isMutating===0`). ItemRow는 0에서 − 비활성화·+는 연타 허용.
   - **당겨서 새로고침**(`PullToRefresh` 컴포넌트) — 홈/전체/위치상세/이력에 적용. window 스크롤 최상단에서만 작동, `overscroll-behavior-y:none`로 브라우저 기본 새로고침 차단. onRefresh=React Query refetch.
