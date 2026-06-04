@@ -17,7 +17,7 @@
 | | 로컬 `kh_stock_local` | 운영 `kh_stock` |
 |---|---|---|
 | REST API 키 | `865af4cbbc46547691915a3aed45ec79` (application.yml 기본값) | `94ec6009e0bea91aa7510478c762083d` |
-| JavaScript 키 (카톡 공유) | `frontend/.env.local` | `91fc022753da03ec6be3ea90fef6db99` |
+| JavaScript 키 (카톡 공유) | `91fc022753da03ec6be3ea90fef6db99` (`frontend/.env.local`) | `7ba37c16c76e2a43c04e10b750a7b9b3` |
 | Redirect URI | `http://localhost:5173/oauth/kakao/callback` | `https://gotgan.kyuhyeong.com/oauth/kakao/callback` |
 | 플랫폼 > Web 도메인 | `http://localhost:5173` | `https://gotgan.kyuhyeong.com` |
 | 키 주입 위치 | `frontend/.env.local`(미커밋) | `frontend/.env.production`(커밋, CI 빌드가 사용) + 서버 `.env.prod`(REST키/Client Secret) |
