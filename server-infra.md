@@ -127,6 +127,12 @@ cd frontend && npm run build && cp -r dist/* /var/www/gotgan/
 - [x] **certbot** 실행 — HTTPS 가동
 - (해소) 평문 노출됐던 Client Secret은 **로컬 앱**(kh_stock_local) 것 — 운영은 별도 앱이라 영향 없음. 로컬 앱 시크릿 재발급은 선택.
 
+## Web Push (곧만료 알림, 2026-06-04 추가)
+- 표준 Web Push(VAPID) — FCM/알림톡 불필요, 서버가 직접 발송. 매일 9시(KST) 가구별 D-3 요약.
+- **서버 1회 작업**: `.env.prod`에 운영 VAPID 키 3줄 추가(`VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`PUSH_SUBJECT`) 후 재배포. 키 생성: `npx web-push generate-vapid-keys`. 로컬 개발 키(application.yml 기본값)와 반드시 분리.
+- iOS는 사용자가 홈 화면에 추가(PWA)해야 알림 수신 가능 — 내정보 토글에 안내 문구 있음.
+- 구독은 기기(브라우저) 단위 `push_subscription` 테이블. 죽은 구독(404/410)은 발송 시 자동 삭제.
+
 ## 운영 수칙 (실수 방지 — 이 세션에서 배운 것)
 1. **서버에서 직접 수정해도 되는 파일은 untracked `.env.prod` 하나뿐.**
    추적 파일(소스, `frontend/.env.production` 등)을 서버에서 고쳐도 ① 프론트는 GitHub Actions 러너에서 빌드되므로 효과 없음 ② 다음 배포의 `git reset --hard origin/main`에 덮어써짐.

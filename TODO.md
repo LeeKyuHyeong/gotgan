@@ -59,7 +59,10 @@
 
 ### 6. 보류/미정 (stock.md)  — 2026-06-03 정리 완료
 - [x] **SSE** → **드롭**. refetch-on-focus + optimistic + pull-to-refresh로 '열 때 항상 최신' 충족, 2인 가구에 서버 복잡도 대비 가치 낮음.
-- [ ] 곧만료 **외부 푸시** → **v2 보류**. 실사용 가치 큼. 구현 시 무료 Web Push(FCM/표준, iOS는 PWA 설치) 우선, 카카오 알림톡(유료+승인)은 후순위.
+- [x] 곧만료 **외부 푸시** — **구현 완료 (2026-06-04, 표준 Web Push/VAPID)**. 매일 아침 9시(KST) 가구별 D-3 요약을 구독 기기 전부에 발송.
+  - 백엔드: `push_subscription`(Flyway V4, endpoint upsert) · `/api/push`(vapid-public-key/subscriptions POST·DELETE) · `ExpiryPushScheduler`(@Scheduled 9시, 죽은 구독 410 자동정리) · `WebPushSender`(web-push 5.1.1 + BC jdk18on). VAPID 키: 로컬 기본값 커밋(개발용), 운영은 `.env.prod` 별도 키.
+  - 프론트: `public/sw.js`(push/notificationclick) · `manifest.webmanifest`+아이콘(PWA, iOS 필수) · `src/lib/push.ts` · 내정보 "유통기한 임박 알림" 토글(iOS는 홈 화면 추가 안내).
+  - [ ] 운영 검증: 서버 `.env.prod`에 운영 VAPID 키 추가 후 배포 → 실기기 토글 ON → 9시 수신 확인 (또는 만료 임박 아이템 만들어 다음날 확인)
 - [x] 분류 **색상 부여** → **지금 구현** (2026-06-03, 아래 7번 참고).
 - [ ] 아이템 **사진 첨부** → **v2 보류**. 파일 업로드·저장소·썸네일 인프라 필요. 텍스트+이모지로 v1 충분.
 

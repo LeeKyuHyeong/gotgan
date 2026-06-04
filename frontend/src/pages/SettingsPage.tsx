@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useMe, useUpdateMe } from '../api/queries'
 import { clearAuth, getHouseholdId, setHouseholdId } from '../lib/auth'
+import { disablePush, enablePush, getPushSubscription, pushSupported, isIos, isStandalone } from '../lib/push'
 import { errorMessage } from '../api/client'
 import { ErrorText, LoadingScreen, Pill } from '../components/ui'
 
@@ -17,7 +18,33 @@ export default function SettingsPage() {
   const [name, setName] = useState('')
   const [nameErr, setNameErr] = useState<string | null>(null)
 
+  // 곧만료 푸시 알림 (기기 단위 구독)
+  const [pushOn, setPushOn] = useState(false)
+  const [pushBusy, setPushBusy] = useState(false)
+  const [pushErr, setPushErr] = useState<string | null>(null)
+  useEffect(() => {
+    getPushSubscription().then((s) => setPushOn(!!s)).catch(() => {})
+  }, [])
+
   if (isLoading || !me) return <LoadingScreen />
+
+  async function togglePush() {
+    setPushErr(null)
+    setPushBusy(true)
+    try {
+      if (pushOn) {
+        await disablePush()
+        setPushOn(false)
+      } else {
+        await enablePush()
+        setPushOn(true)
+      }
+    } catch (e) {
+      setPushErr(e instanceof Error ? e.message : '알림 설정에 실패했어요.')
+    } finally {
+      setPushBusy(false)
+    }
+  }
 
   function openNameEdit() {
     setName(me?.user.nickname ?? '')
@@ -114,6 +141,43 @@ export default function SettingsPage() {
               </button>
             </div>
           ))}
+        </div>
+      </div>
+
+      <div className="mt-5">
+        <div className="mb-2 text-xs font-bold text-ink-soft">알림</div>
+        <div className="overflow-hidden rounded-2xl border border-line bg-surface">
+          <div className="flex items-center gap-3 p-3.5">
+            <span className="text-lg">⏰</span>
+            <div className="flex-1">
+              <div className="text-sm font-semibold">유통기한 임박 알림</div>
+              <div className="mt-0.5 text-[11px] leading-relaxed text-ink-soft">
+                매일 아침 9시, 3일 내 만료 예정 알림 (이 기기로)
+                {isIos() && !isStandalone() && (
+                  <>
+                    <br />
+                    아이폰: Safari 공유 → &quot;홈 화면에 추가&quot; 후 그 앱에서 켜기
+                  </>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={togglePush}
+              disabled={pushBusy || !pushSupported()}
+              aria-checked={pushOn}
+              role="switch"
+              className={`relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-40 ${pushOn ? 'bg-brand' : 'bg-line'}`}
+            >
+              <span
+                className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${pushOn ? 'left-6' : 'left-1'}`}
+              />
+            </button>
+          </div>
+          {pushErr && (
+            <div className="border-t border-line px-3.5 py-2">
+              <ErrorText message={pushErr} />
+            </div>
+          )}
         </div>
       </div>
 

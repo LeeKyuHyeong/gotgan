@@ -44,6 +44,10 @@ services:
       KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET:-}
       KAKAO_REDIRECT_URI: ${KAKAO_REDIRECT_URI}
       CORS_ORIGINS: ${CORS_ORIGINS}
+      # Web Push(곧만료 알림) — 운영 전용 VAPID 키쌍 (로컬 기본키와 다름)
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      PUSH_SUBJECT: ${PUSH_SUBJECT:-mailto:rbgud2380@naver.com}
     ports:
       # 호스트 루프백에만 노출 → nginx proxy_pass http://127.0.0.1:8083
       - "127.0.0.1:8083:8083"

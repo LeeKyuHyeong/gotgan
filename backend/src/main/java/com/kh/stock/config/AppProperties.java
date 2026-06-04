@@ -6,7 +6,7 @@ import java.util.List;
 
 /** application.yml 의 app.* 설정 바인딩. */
 @ConfigurationProperties(prefix = "app")
-public record AppProperties(Kakao kakao, Jwt jwt, Cors cors) {
+public record AppProperties(Kakao kakao, Jwt jwt, Cors cors, Push push) {
 
     public record Kakao(
             String restApiKey,
@@ -21,5 +21,11 @@ public record AppProperties(Kakao kakao, Jwt jwt, Cors cors) {
 
     public record Cors(
             List<String> allowedOrigins
+    ) {}
+
+    public record Push(
+            String vapidPublicKey,
+            String vapidPrivateKey,
+            String subject
     ) {}
 }

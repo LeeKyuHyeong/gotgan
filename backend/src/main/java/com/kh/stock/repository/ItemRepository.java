@@ -48,6 +48,14 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
                       @Param("locationId") Long locationId,
                       @Param("q") String q);
 
+    /** 푸시 알림용: 전 가구의 곧만료(오늘~+3일) 활성 아이템. 가구별로 묶어 발송. */
+    @Query("""
+            select i from Item i join fetch i.household
+            where i.deletedAt is null and i.expiryDate between :from and :to
+            order by i.household.id, i.expiryDate asc
+            """)
+    List<Item> findAllExpiringForNotify(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
     /** 위치 삭제 가드: 해당 위치에 활성 아이템이 있는지. */
     boolean existsByLocation_IdAndDeletedAtIsNull(Long locationId);
 
