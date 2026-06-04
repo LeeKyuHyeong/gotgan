@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDevLogin } from '../api/queries'
-import { setHouseholdId } from '../lib/auth'
+import { getPendingInviteCode, setHouseholdId } from '../lib/auth'
 import { Button, ErrorText } from '../components/ui'
 import { errorMessage } from '../api/client'
 import type { LoginResponse } from '../api/types'
@@ -13,7 +13,9 @@ export default function LoginPage() {
   const [err, setErr] = useState<string | null>(null)
 
   function afterLogin(data: LoginResponse) {
-    if (data.needsOnboarding) {
+    if (getPendingInviteCode()) {
+      navigate('/onboarding/join', { replace: true }) // 초대 링크 경유 — 합류 화면으로 직행
+    } else if (data.needsOnboarding) {
       navigate('/onboarding', { replace: true })
     } else {
       setHouseholdId(data.households[0].householdId)

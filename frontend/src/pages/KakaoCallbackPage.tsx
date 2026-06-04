@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useKakaoLogin } from '../api/queries'
-import { setHouseholdId } from '../lib/auth'
+import { getPendingInviteCode, setHouseholdId } from '../lib/auth'
 import { errorMessage } from '../api/client'
 import { Button } from '../components/ui'
 
@@ -33,7 +33,10 @@ export default function KakaoCallbackPage() {
     kakaoLogin
       .mutateAsync({ code })
       .then((data) => {
-        if (data.needsOnboarding) {
+        if (getPendingInviteCode()) {
+          // 초대 링크로 들어온 경우: 온보딩/홈 대신 합류 화면으로 직행(코드 자동 입력)
+          window.location.replace('/onboarding/join')
+        } else if (data.needsOnboarding) {
           window.location.replace('/onboarding')
         } else {
           setHouseholdId(data.households[0].householdId)

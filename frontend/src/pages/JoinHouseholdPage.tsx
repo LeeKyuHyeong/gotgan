@@ -1,14 +1,19 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useJoinHousehold } from '../api/queries'
+import { clearPendingInviteCode, getPendingInviteCode } from '../lib/auth'
 import { AppHeader, Button, ErrorText } from '../components/ui'
 import { errorMessage } from '../api/client'
 
 export default function JoinHouseholdPage() {
   const navigate = useNavigate()
   const join = useJoinHousehold()
-  const [code, setCode] = useState('')
+  // 초대 링크로 들어왔다면 보관된 코드를 자동 입력
+  const [code, setCode] = useState(() => getPendingInviteCode() ?? '')
   const [err, setErr] = useState<string | null>(null)
+
+  // 보관 코드는 1회용 — 화면에 옮긴 뒤 비워서 다음 로그인에 영향 없게
+  useEffect(() => clearPendingInviteCode(), [])
 
   function submit() {
     setErr(null)

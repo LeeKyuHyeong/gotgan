@@ -6,6 +6,7 @@ import { BottomTabs } from './components/BottomTabs'
 import LoginPage from './pages/LoginPage'
 import KakaoCallbackPage from './pages/KakaoCallbackPage'
 import OnboardingPage from './pages/OnboardingPage'
+import InviteLandingPage from './pages/InviteLandingPage'
 import CreateHouseholdPage from './pages/CreateHouseholdPage'
 import JoinHouseholdPage from './pages/JoinHouseholdPage'
 import InvitePage from './pages/InvitePage'
@@ -64,6 +65,8 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/oauth/kakao/callback" element={<KakaoCallbackPage />} />
+      {/* 초대 공유 링크 진입점 — 비로그인도 접근 가능해야 해서 RequireAuth 밖 */}
+      <Route path="/join" element={<InviteLandingPage />} />
 
       <Route element={<RequireAuth />}>
         <Route path="/onboarding" element={<OnboardingPage />} />

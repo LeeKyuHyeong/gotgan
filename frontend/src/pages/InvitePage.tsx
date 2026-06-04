@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useInvite, useRegenerateInvite } from '../api/queries'
 import { AppHeader, Button, LoadingScreen } from '../components/ui'
-import { shareInviteKakao } from '../lib/kakao'
+import { inviteJoinUrl, shareInviteKakao } from '../lib/kakao'
 
 export default function InvitePage() {
   const { id } = useParams()
@@ -31,7 +31,7 @@ export default function InvitePage() {
   async function share() {
     // 1순위 카카오톡 → 2순위 OS 공유 시트 → 3순위 복사
     if (await shareInviteKakao(code)) return
-    const text = `🏠 곳간에 초대합니다!\n초대코드: ${code}\n앱에서 '가구 합류'에 입력하면 같이 쓸 수 있어요.`
+    const text = `🏠 곳간에 초대합니다!\n초대코드: ${code}\n${inviteJoinUrl(code)}\n링크를 열면 바로 합류할 수 있어요.`
     if (navigator.share) {
       try {
         await navigator.share({ title: '곳간 초대', text })

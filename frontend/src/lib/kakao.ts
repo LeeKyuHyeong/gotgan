@@ -35,15 +35,21 @@ export function ensureKakao(): Promise<KakaoSdk | null> {
   return loadPromise
 }
 
+/** 초대 딥링크 — 열면 코드 자동 입력된 합류 화면으로 이어진다(/join 라우트). */
+export function inviteJoinUrl(inviteCode: string): string {
+  return `${location.origin}/join?code=${encodeURIComponent(inviteCode)}`
+}
+
 /** 카카오톡으로 초대코드 공유. 성공 시 true. SDK/키 미설정이면 false(호출측이 fallback). */
 export async function shareInviteKakao(inviteCode: string): Promise<boolean> {
   const kakao = await ensureKakao()
   if (!kakao?.Share) return false
-  const url = location.origin
+  const url = inviteJoinUrl(inviteCode)
   kakao.Share.sendDefault({
     objectType: 'text',
-    text: `🏠 곳간에 초대합니다!\n초대코드: ${inviteCode}\n앱에서 '가구 합류'에 코드를 입력하면 같이 쓸 수 있어요.`,
+    text: `🏠 곳간에 초대합니다!\n초대코드: ${inviteCode}\n아래 버튼을 누르면 바로 합류할 수 있어요.`,
     link: { mobileWebUrl: url, webUrl: url },
+    buttonTitle: '곳간에서 합류하기',
   })
   return true
 }
