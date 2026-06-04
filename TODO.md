@@ -10,7 +10,7 @@
 - DB 스키마 8테이블 + Flyway 마이그레이션 + 공통분류 시드
 - 백엔드: **카카오 로그인 + 자체 JWT**, 테넌트 격리(`X-Household-Id`), 온보딩(가구 생성/합류/초대코드), 위치·아이템·이력·분류 조회 API, 변동이력 자동기록, 소프트삭제, 곧만료 D-3
 - 프론트: 로그인(카카오 실로그인 e2e 완료)·온보딩·초대·홈·위치상세·전체/검색·아이템 추가·편집·이력·내정보·**위치 관리/편집**
-- **운영 배포 가동** (2026-06-04): https://gotgan.kyuhyeong.com — HTTPS·CI/CD(main 푸시 자동배포)·운영 카카오 앱(kh_stock)·DBeaver 3312 접속까지 완료. 상세: [`server-infra.md`](server-infra.md)
+- **운영 배포 가동** (2026-06-04): https://gotgan.kyuhyeong.com — HTTPS·CI/CD(main 푸시 자동배포)·운영 카카오 앱(kh_stock)·DBeaver 3312 접속까지 완료. 상세: [`server-infra-stock.md`](server-infra-stock.md)
 
 ---
 
@@ -38,20 +38,20 @@
 - [ ] 카카오 동의항목(닉네임/프로필) 설정 or 위 입력으로 대체 (위 입력으로 대체 가능 — 동의항목은 선택)
 - [x] 초대코드 **카카오톡 공유 버튼** 실제 연동(JS SDK) (2026-06-03) — InvitePage에 '카카오톡으로 초대하기' 버튼. `src/lib/kakao.ts`가 JS SDK(v2.8.1, SRI 핀) 동적로드+`Kakao.Share.sendDefault`(text). 키 미설정 시 Web Share API→복사로 자동 대체. 운영 JS 키 주입 완료(`frontend/.env.production`).
 - [x] **카톡 공유 딥링크 합류 플로우** (2026-06-04) — 공유 메시지의 '곳간에서 합류하기' 버튼 → `/join?code=XX`(공개 라우트, `InviteLandingPage`) → 코드를 `stock.pendingInviteCode`에 보관 → (비로그인이면 카카오 로그인 경유) → 합류 화면에 **코드 자동 입력** → 원탭 합류. 보관 코드는 1회용(화면 진입 시 소거).
-  - [x] 운영 e2e 확인 완료 (2026-06-04, 실기기) — 카톡 공유 발송 → 버튼 → 자동입력 합류. 트러블슈팅 기록은 [`server-infra.md`](server-infra.md) 카카오 앱 구성/운영 수칙 참고.
+  - [x] 운영 e2e 확인 완료 (2026-06-04, 실기기) — 카톡 공유 발송 → 버튼 → 자동입력 합류. 트러블슈팅 기록은 [`server-infra-stock.md`](server-infra-stock.md) 카카오 앱 구성/운영 수칙 참고.
 - [x] optimistic update / pull-to-refresh 등 UX 다듬기 (2026-06-03)
   - 수량 증감(`useAdjustItem`) **낙관적 갱신**: 클릭 즉시 캐시 반영, 실패 시 inverse-delta 롤백, 연타 중 마지막만 서버 동기화(`isMutating===0`). ItemRow는 0에서 − 비활성화·+는 연타 허용.
   - **당겨서 새로고침**(`PullToRefresh` 컴포넌트) — 홈/전체/위치상세/이력에 적용. window 스크롤 최상단에서만 작동, `overscroll-behavior-y:none`로 브라우저 기본 새로고침 차단. onRefresh=React Query refetch.
 - [x] **앱 이름 확정**: **곳간** (2026-06-03) — 도메인 `gotgan.kyuhyeong.com`, index.html 타이틀·로그인 브랜드·카카오/공유 문구 반영.
 - [x] **아이템별 변동 이력 보기** (2026-06-03) — `GET /api/items/{id}/history`(소유 검증 후 최신순). 아이템 편집 화면(`ItemFormPage`) 하단에 인라인 표시(액션·누가·델타→결과수량·시각). 공용 헬퍼 `src/lib/history.ts`(ACTION_LABEL/fmtDateTime, HistoryPage와 공유). 훅 `useItemHistory`, 아이템 변경 시 `['itemHistory']` invalidate. 빌드 검증(런타임은 DB 필요).
 
-### 5. 운영/보안 (배포 전)  — 인프라 SSOT: [`server-infra.md`](server-infra.md)
+### 5. 운영/보안 (배포 전)  — 인프라 SSOT: [`server-infra-stock.md`](server-infra-stock.md)
 **확정**: 앱 포트 **8083**(회수번호 재사용) · DB **3312** · 도메인 `gotgan.kyuhyeong.com`(앱 이름 '곳간' 확정) · 서버 `175.125.21.245`(Cafe24 단일).
 - [x] `application.yml`의 `client-secret` → **환경변수로 분리**(평문 제거, `${KAKAO_CLIENT_SECRET:}`). REST키는 공개값이라 로컬 기본값 유지(env override 가능). (2026-06-03)
 - [x] `docker-compose.prod.yml` + `.env.prod.example`(실제 `.env.prod`는 `.gitignore`) — 앱 `127.0.0.1:8083:8083`, DB 컨테이너 `stock-db`(`3312:3306`), 앱→DB는 `stock-db:3306`, healthcheck/볼륨. `backend/Dockerfile`(멀티스테이지·비루트). `compose config`·호스트 `bootJar` 검증 완료(이미지 빌드는 로컬 Docker 데몬 미기동으로 미검증 — 서버에서 확인). (2026-06-03)
 - [x] nginx `deploy/nginx/gotgan.kyuhyeong.com.conf`(80블록 → certbot 443 자동) — SPA 정적 + `/api`→`127.0.0.1:8083` 프록시. (2026-06-03)
 - [x] CORS/redirect 운영값 **env 주입 가능화**(`CORS_ORIGINS`, `KAKAO_REDIRECT_URI` — `.env.prod`/compose에 반영). (2026-06-03)
-- [x] **(서버/콘솔 작업)** DNS A레코드 · Cafe24 방화벽 `stock_db` · 카카오 콘솔(운영 앱 `kh_stock` 신설) · `.env.prod` 비밀 주입 · certbot — **전부 완료 (2026-06-04)**, 기록은 [`server-infra.md`](server-infra.md)
+- [x] **(서버/콘솔 작업)** DNS A레코드 · Cafe24 방화벽 `stock_db` · 카카오 콘솔(운영 앱 `kh_stock` 신설) · `.env.prod` 비밀 주입 · certbot — **전부 완료 (2026-06-04)**, 기록은 [`server-infra-stock.md`](server-infra-stock.md)
 - [x] CI/CD: GitHub Actions `deploy.yml` — main 푸시 → 빌드 검증 → 프론트 dist scp + 서버 `git reset --hard`+`docker compose up -d --build`. (`backend/gradlew` exec bit 수정 포함)
 - [x] 배포 후 안정화 (2026-06-04): 가구 생성 후 **온보딩 무한루프 수정**(React Query 비활성 쿼리 invalidate → `refetchType:'all'`+Promise 반환), `/api/me` 실패 시 **에러 화면+로그아웃 탈출구**(`LoadErrorScreen`)
 - (해소) Client Secret 평문 노출 건 — 노출된 건 로컬 앱 키, 운영은 별도 앱(kh_stock)이라 무관. 로컬 앱 재발급은 선택.

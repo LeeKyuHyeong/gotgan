@@ -3,7 +3,7 @@
 > 가족(부부) 단위 **집안 재고 확인** 모바일 반응형 웹앱.
 > 본인 + 예비 신부로 시작, 추후 친구 부부 가구로 확장 가능.
 > 앱 이름 **곳간** 확정 — 운영: https://gotgan.kyuhyeong.com
-> 작업 현황은 [`TODO.md`](TODO.md), 인프라는 [`server-infra.md`](server-infra.md) 참고. 이 문서는 초기 설계 결정의 기록.
+> 작업 현황은 [`TODO.md`](TODO.md), 인프라는 [`server-infra-stock.md`](server-infra-stock.md) 참고. 이 문서는 초기 설계 결정의 기록.
 
 ---
 

@@ -10,7 +10,7 @@
 |---|---|
 | [`stock.md`](stock.md) | 앱 설계 — 확정 결정(3D 제외, 멀티테넌트, 무료, 카카오 단독 인증), 데이터 모델, 화면 구성 |
 | [`TODO.md`](TODO.md) | 작업 현황 — 완료/남은 작업의 단일 목록 |
-| [`server-infra.md`](server-infra.md) | **운영 인프라 SSOT** — 서버/포트/배포 절차/CI/CD/카카오 앱 구성/운영 수칙 |
+| [`server-infra-stock.md`](server-infra-stock.md) | **운영 인프라 SSOT** — 서버/포트/배포 절차/CI/CD/카카오 앱 구성/운영 수칙 |
 | [`db/SCHEMA.md`](db/SCHEMA.md) | DB 스키마(8테이블) 설계. 실제 스키마는 Flyway(`backend/.../db/migration`)가 소유 |
 | [`inventory_app_screens.html`](inventory_app_screens.html) | 화면 시안(14화면) |
 
@@ -40,7 +40,7 @@ cd frontend && npm install && npm run dev   # 5173, /api → 8083 프록시
 ## 배포
 
 `main` 푸시 → GitHub Actions가 빌드 검증 후 서버 SSH 배포 (자동).
-절차·시크릿·1회 부트스트랩은 [`server-infra.md`](server-infra.md) 참고.
+절차·시크릿·1회 부트스트랩은 [`server-infra-stock.md`](server-infra-stock.md) 참고.
 
 ## 비밀 관리 (요약)
 
