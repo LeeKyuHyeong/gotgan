@@ -37,6 +37,8 @@
 - **곧만료 Web Push**(표준 VAPID): `push_subscription`(V4)·스케줄러(9시, 410 자동정리)·`sw.js`·PWA manifest·내정보 알림 토글. 인앱 브라우저는 푸시 API 없음 → 크롬 1회 ON으로 충분
 - **세션 유지**: JWT_TTL 30일 + 무클릭 자동 로그인(`prompt=none`, 실패 시 60초 재시도 금지). 인앱 브라우저 localStorage 증발 → PWA 설치 안내가 근본 해법
 - 인프라: 컨테이너 TZ=Asia/Seoul 고정, `stock-*`→`gotgan-*` rename, 인프라 문서 `D:\server-infra.md`로 SSOT 일원화
+- **자주 쓰는 품목 프리셋**(06-06): 아이템 등록 시 텍스트 입력 유지 + 선택 가능 — 카탈로그 198개(`frontend/src/lib/presets.ts`, 이름·이모지·분류·기본단위), PresetPicker 오버레이(분류별 그룹+검색), 입력 중 실시간 추천 칩(부분일치 8개). 선택 시 분류 자동 매칭 + 단위는 빈 칸일 때만 채움. 공통 분류 **'곡물·면'(🌾) V5 신설**(쌀·면류가 '기타'로 새지 않게, 양념 다음 정렬) — 운영 적용·실기기 확인 완료
+- **로그인 401 인터셉터 버그픽스**(06-06): `/api/auth/*`의 401(교환 실패)이 전역 인터셉터에 가로채여 `/login` 강제 이동 → 에러 메시지가 영영 안 보이던 문제. auth 엔드포인트는 통과시켜 콜백 화면이 원인(KOE010 등)을 표시하도록 수정
 
 ### 드롭/대체 결정 (기록)
 - **SSE 드롭** — refetch-on-focus + optimistic + pull-to-refresh로 '열 때 항상 최신' 충족
@@ -51,3 +53,4 @@
 - 백엔드 코드 변경 후 8083 재시작 필요. 프론트 `.env.local` 변경 시 dev 서버 재시작.
 - 테스트 코드: 기본 `contextLoads`만 있음(DB 필요). 비즈니스 로직 테스트 미작성.
 - 개발용 로그인은 dev 프로파일 전용(`dev-token`, 어드민은 `"admin":true`) — 운영 빌드에서 제거됨.
+- **로컬 카카오 실로그인**: 로컬 앱(kh_stock_local)은 Client Secret **필수** — env 없이 백엔드 띄우면 토큰 교환이 KOE010으로 실패. Git Bash에서 `export KAKAO_CLIENT_SECRET=<콘솔 값>` 후 `./gradlew bootRun` (PowerShell은 `$env:KAKAO_CLIENT_SECRET='...'`). secret 불필요한 개발용 로그인이 더 간편.
