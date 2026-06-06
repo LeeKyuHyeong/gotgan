@@ -1,9 +1,9 @@
 # 운영 배포: docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 # 앱은 127.0.0.1:8083 에만 바인딩(호스트 nginx가 프록시). DB 3312는 DBeaver 외부접속 전용(방화벽 stock_db 로 관리 IP만 허용).
 services:
-  stock-db:
+  gotgan-db:
     image: mariadb:11
-    container_name: stock-db
+    container_name: gotgan-db
     restart: unless-stopped
     environment:
       TZ: Asia/Seoul  # 미설정 시 UTC — 로그·NOW() 가 KST-9h 로 어긋남
@@ -18,26 +18,26 @@ services:
       # 외부(DBeaver) 전용. 접근 제어는 Cafe24 방화벽 stock_db 규칙(관리 IP 3개)로.
       - "3312:3306"
     volumes:
-      - stock-db-data:/var/lib/mysql
+      - db-data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
       timeout: 5s
       retries: 10
 
-  stock-app:
+  gotgan-app:
     build:
       context: ./backend
-    container_name: stock-app
+    container_name: gotgan-app
     restart: unless-stopped
     depends_on:
-      stock-db:
+      gotgan-db:
         condition: service_healthy
     environment:
       TZ: Asia/Seoul  # JVM 기본존도 이걸 따름 — LocalDate.now() 존 미지정 호출 보호
       SPRING_PROFILES_ACTIVE: prod
       # 앱→DB 는 컨테이너명으로 접속(3306). 3312는 호스트 외부접속용일 뿐.
-      DB_URL: jdbc:mariadb://stock-db:3306/stock?characterEncoding=utf8mb4&serverTimezone=Asia/Seoul
+      DB_URL: jdbc:mariadb://gotgan-db:3306/stock?characterEncoding=utf8mb4&serverTimezone=Asia/Seoul
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
@@ -55,4 +55,4 @@ services:
       - "127.0.0.1:8083:8083"
 
 volumes:
-  stock-db-data:
+  db-data:

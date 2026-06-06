@@ -48,7 +48,7 @@
 ### 5. 운영/보안 (배포 전)  — 인프라 SSOT: `D:\server-infra.md`
 **확정**: 앱 포트 **8083**(회수번호 재사용) · DB **3312** · 도메인 `gotgan.kyuhyeong.com`(앱 이름 '곳간' 확정) · 서버 `175.125.21.245`(Cafe24 단일).
 - [x] `application.yml`의 `client-secret` → **환경변수로 분리**(평문 제거, `${KAKAO_CLIENT_SECRET:}`). REST키는 공개값이라 로컬 기본값 유지(env override 가능). (2026-06-03)
-- [x] `docker-compose.prod.yml` + `.env.prod.example`(실제 `.env.prod`는 `.gitignore`) — 앱 `127.0.0.1:8083:8083`, DB 컨테이너 `stock-db`(`3312:3306`), 앱→DB는 `stock-db:3306`, healthcheck/볼륨. `backend/Dockerfile`(멀티스테이지·비루트). `compose config`·호스트 `bootJar` 검증 완료(이미지 빌드는 로컬 Docker 데몬 미기동으로 미검증 — 서버에서 확인). (2026-06-03)
+- [x] `docker-compose.prod.yml` + `.env.prod.example`(실제 `.env.prod`는 `.gitignore`) — 앱 `127.0.0.1:8083:8083`, DB 컨테이너 `gotgan-db`(`3312:3306`), 앱→DB는 `gotgan-db:3306`, healthcheck/볼륨. `backend/Dockerfile`(멀티스테이지·비루트). `compose config`·호스트 `bootJar` 검증 완료(이미지 빌드는 로컬 Docker 데몬 미기동으로 미검증 — 서버에서 확인). (2026-06-03)
 - [x] nginx `deploy/nginx/gotgan.kyuhyeong.com.conf`(80블록 → certbot 443 자동) — SPA 정적 + `/api`→`127.0.0.1:8083` 프록시. (2026-06-03)
 - [x] CORS/redirect 운영값 **env 주입 가능화**(`CORS_ORIGINS`, `KAKAO_REDIRECT_URI` — `.env.prod`/compose에 반영). (2026-06-03)
 - [x] **(서버/콘솔 작업)** DNS A레코드 · Cafe24 방화벽 `stock_db` · 카카오 콘솔(운영 앱 `kh_stock` 신설) · `.env.prod` 비밀 주입 · certbot — **전부 완료 (2026-06-04)**, 기록은 `D:\server-infra.md`
@@ -64,7 +64,7 @@
   - 프론트: `public/sw.js`(push/notificationclick) · `manifest.webmanifest`+아이콘(PWA, iOS 필수) · `src/lib/push.ts` · 내정보 "유통기한 임박 알림" 토글(iOS는 홈 화면 추가 안내).
   - 서버 `.env.prod` 운영 VAPID 키 주입 + 재배포 완료, 실기기(크롬) 토글 ON 완료 (2026-06-04)
   - 인앱 브라우저(네이버/카톡)는 푸시 API 없음 → 토글 시 안내 메시지로 처리. 알림은 구독한 브라우저(크롬)가 받으므로 크롬 1회 ON 으로 충분.
-  - [ ] **운영 검증 잔여**: 다음 9시(KST)에 실제 수신 확인 — D-3 이내 만료 아이템이 1개 이상 있어야 발송됨. 미수신 시 `docker logs stock-app | grep 곧만료`
+  - [ ] **운영 검증 잔여**: 다음 9시(KST)에 실제 수신 확인 — D-3 이내 만료 아이템이 1개 이상 있어야 발송됨. 미수신 시 `docker logs gotgan-app | grep 곧만료`
 - [x] 분류 **색상 부여** → **지금 구현** (2026-06-03, 아래 7번 참고).
 - [ ] 아이템 **사진 첨부** → **v2 보류**. 파일 업로드·저장소·썸네일 인프라 필요. 텍스트+이모지로 v1 충분.
 
