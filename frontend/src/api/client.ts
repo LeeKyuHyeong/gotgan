@@ -20,10 +20,13 @@ api.interceptors.request.use((config) => {
 })
 
 // 401 → 인증 만료. 로그인으로.
+// 단, 로그인 엔드포인트(/api/auth/*) 자체의 401은 "교환 실패"지 만료가 아님 —
+// 가로채면 콜백 화면이 에러를 보여주기 전에 /login 으로 튕겨서 원인이 영영 안 보인다.
 api.interceptors.response.use(
   (res) => res,
   (error) => {
-    if (error.response?.status === 401) {
+    const url: string = error.config?.url ?? ''
+    if (error.response?.status === 401 && !url.startsWith('/api/auth/')) {
       clearAuth()
       if (location.pathname !== '/login') {
         location.href = '/login'
