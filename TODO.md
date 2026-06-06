@@ -1,84 +1,48 @@
-# 곳간 — 남은 작업 (TODO)
+# 곳간 — 작업 현황 (TODO)
 
-> 가족(부부) 단위 집안 재고 확인 모바일 웹앱. 설계: [`stock.md`](stock.md) · 시안: [`inventory_app_screens.html`](inventory_app_screens.html) · DB: [`db/SCHEMA.md`](db/SCHEMA.md)
+> 가족(부부) 단위 집안 재고 확인 모바일 웹앱 — **운영 가동 중**: https://gotgan.kyuhyeong.com (2026-06-04~)
 > 스택: React+TS+Tailwind(프론트, 5173) / Spring Boot 4·Java 17(백엔드, 8083) / MariaDB(local 3306, 운영 3312)
-
----
-
-## ✅ 완료
-- 화면 시안 (로그인~어드민 14화면)
-- DB 스키마 8테이블 + Flyway 마이그레이션 + 공통분류 시드
-- 백엔드: **카카오 로그인 + 자체 JWT**, 테넌트 격리(`X-Household-Id`), 온보딩(가구 생성/합류/초대코드), 위치·아이템·이력·분류 조회 API, 변동이력 자동기록, 소프트삭제, 곧만료 D-3
-- 프론트: 로그인(카카오 실로그인 e2e 완료)·온보딩·초대·홈·위치상세·전체/검색·아이템 추가·편집·이력·내정보·**위치 관리/편집**
-- **운영 배포 가동** (2026-06-04): https://gotgan.kyuhyeong.com — HTTPS·CI/CD(main 푸시 자동배포)·운영 카카오 앱(kh_stock)·DBeaver 3312 접속까지 완료. 상세: `D:\server-infra.md`
+> 설계 결정·문서 지도: [`README.md`](README.md) · DB: [`db/SCHEMA.md`](db/SCHEMA.md) · 인프라 SSOT: `D:\server-infra.md`
 
 ---
 
 ## 🔜 남은 작업
 
-### 1. 분류 추가 요청 (커뮤니티 → 운영자 승인)  ✅ 완료 (2026-06-02)
-- [x] **백엔드**: `category_request` API — 요청 생성(`POST /api/category-requests`), 내 가구 요청 조회(`GET`). 중복 PENDING/기존 분류명 409, 미인증 401, 가구헤더 없음 400 — e2e 검증.
-- [x] **프론트**: 시안 ⑩ "분류 선택" 오버레이(`CategoryPicker`) — 검색 + 칩 목록 + **"＋ 분류 추가 요청하기"**(이름+이모지) + 요청중 칩. 아이템 폼 분류 필드가 이 오버레이를 염.
-- 어드민 승인 측은 → 2번(플랫폼 어드민)에서 처리
-
-### 2. 플랫폼 어드민 (SYSTEM_ADMIN)  ✅ 완료 (2026-06-02)
-- [x] **백엔드** `/api/admin/**`(hasRole SYSTEM_ADMIN): `stats`, 요청 목록(`?status=`, 동일이름 `sameNameCount`), 승인(`/approve` — 공통분류 생성/재사용 + 동일이름 대기요청 일괄 승인, 이모지 override), 거절(`/reject`), 공통분류 CRUD(`/categories` GET/POST/PATCH/DELETE). 삭제는 아이템/요청이력 사용 시 409, 숨김은 PATCH status=HIDDEN.
-- [x] **프론트**: 내정보→어드민(운영자만 노출). `/admin`(⑬ 요청관리: 통계+카드+이모지지정+승인/반려), `/admin/categories`(⑭ 마스터: 검색+추가/수정/숨김/삭제). 가드 `RequireAdmin`.
-- [x] e2e 검증: 권한 403/401/200, 승인→사용자 `/api/categories` 반영, sameNameCount 집계, 각종 가드.
-- [x] **보안 버그 수정**: `/error` permitAll + accessDeniedHandler 추가 → 권한거부가 401로 덮이던 문제 해결(프론트 오(誤)로그아웃 방지).
-- [x] 운영자 `role=SYSTEM_ADMIN` 부여 = **운영 DB에서 직접 `UPDATE app_user SET role='SYSTEM_ADMIN' WHERE id=?`**. (개발은 `dev-token`에 `"admin":true` — dev 프로파일 전용)
-
-### 3. 가구 관리 잔여 (가족장 권한)  ✅ 완료 (2026-06-02)
-- [x] **백엔드**: `GET /api/households/{id}`(상세+멤버, 초대코드는 가족장만), `PATCH`(이름변경), `DELETE`(삭제+아이템/이력/위치/분류요청/멤버십 cascade), `DELETE /members/{userId}`(내보내기), `POST /transfer`(소유권 이양), `POST /leave`(나가기). 가드: 가족장/멤버 권한, 자기 내보내기·가족장 나가기 차단.
-- [x] **프론트**: `HouseholdManagePage`(`/households/:id/manage`) — 이름변경·멤버목록·내보내기·가족장 넘기기·삭제(가족장)/나가기(멤버). 내정보 가구행 '관리' 링크(전원).
-- [x] e2e 검증: 권한 403/400, 이양 역할swap, cascade 삭제(아이템 보유 상태).
-
-### 4. 마무리/디테일
-- [x] **표시명(닉네임) 입력** (2026-06-02) — `PATCH /api/me`. 온보딩: 닉네임 없으면 표시이름부터 입력. 내정보: '이름 수정' 인라인 편집. e2e 검증(200/400/401).
-- [ ] 카카오 동의항목(닉네임/프로필) 설정 or 위 입력으로 대체 (위 입력으로 대체 가능 — 동의항목은 선택)
-- [x] 초대코드 **카카오톡 공유 버튼** 실제 연동(JS SDK) (2026-06-03) — InvitePage에 '카카오톡으로 초대하기' 버튼. `src/lib/kakao.ts`가 JS SDK(v2.8.1, SRI 핀) 동적로드+`Kakao.Share.sendDefault`(text). 키 미설정 시 Web Share API→복사로 자동 대체. 운영 JS 키 주입 완료(`frontend/.env.production`).
-- [x] **카톡 공유 딥링크 합류 플로우** (2026-06-04) — 공유 메시지의 '곳간에서 합류하기' 버튼 → `/join?code=XX`(공개 라우트, `InviteLandingPage`) → 코드를 `stock.pendingInviteCode`에 보관 → (비로그인이면 카카오 로그인 경유) → 합류 화면에 **코드 자동 입력** → 원탭 합류. 보관 코드는 1회용(화면 진입 시 소거).
-  - [x] 운영 e2e 확인 완료 (2026-06-04, 실기기) — 카톡 공유 발송 → 버튼 → 자동입력 합류. 트러블슈팅 기록은 `D:\server-infra.md` 카카오 앱 구성/운영 수칙 참고.
-- [x] optimistic update / pull-to-refresh 등 UX 다듬기 (2026-06-03)
-  - 수량 증감(`useAdjustItem`) **낙관적 갱신**: 클릭 즉시 캐시 반영, 실패 시 inverse-delta 롤백, 연타 중 마지막만 서버 동기화(`isMutating===0`). ItemRow는 0에서 − 비활성화·+는 연타 허용.
-  - **당겨서 새로고침**(`PullToRefresh` 컴포넌트) — 홈/전체/위치상세/이력에 적용. window 스크롤 최상단에서만 작동, `overscroll-behavior-y:none`로 브라우저 기본 새로고침 차단. onRefresh=React Query refetch.
-- [x] **앱 이름 확정**: **곳간** (2026-06-03) — 도메인 `gotgan.kyuhyeong.com`, index.html 타이틀·로그인 브랜드·카카오/공유 문구 반영.
-- [x] **아이템별 변동 이력 보기** (2026-06-03) — `GET /api/items/{id}/history`(소유 검증 후 최신순). 아이템 편집 화면(`ItemFormPage`) 하단에 인라인 표시(액션·누가·델타→결과수량·시각). 공용 헬퍼 `src/lib/history.ts`(ACTION_LABEL/fmtDateTime, HistoryPage와 공유). 훅 `useItemHistory`, 아이템 변경 시 `['itemHistory']` invalidate. 빌드 검증(런타임은 DB 필요).
-
-### 5. 운영/보안 (배포 전)  — 인프라 SSOT: `D:\server-infra.md`
-**확정**: 앱 포트 **8083**(회수번호 재사용) · DB **3312** · 도메인 `gotgan.kyuhyeong.com`(앱 이름 '곳간' 확정) · 서버 `175.125.21.245`(Cafe24 단일).
-- [x] `application.yml`의 `client-secret` → **환경변수로 분리**(평문 제거, `${KAKAO_CLIENT_SECRET:}`). REST키는 공개값이라 로컬 기본값 유지(env override 가능). (2026-06-03)
-- [x] `docker-compose.prod.yml` + `.env.prod.example`(실제 `.env.prod`는 `.gitignore`) — 앱 `127.0.0.1:8083:8083`, DB 컨테이너 `gotgan-db`(`3312:3306`), 앱→DB는 `gotgan-db:3306`, healthcheck/볼륨. `backend/Dockerfile`(멀티스테이지·비루트). `compose config`·호스트 `bootJar` 검증 완료(이미지 빌드는 로컬 Docker 데몬 미기동으로 미검증 — 서버에서 확인). (2026-06-03)
-- [x] nginx `deploy/nginx/gotgan.kyuhyeong.com.conf`(80블록 → certbot 443 자동) — SPA 정적 + `/api`→`127.0.0.1:8083` 프록시. (2026-06-03)
-- [x] CORS/redirect 운영값 **env 주입 가능화**(`CORS_ORIGINS`, `KAKAO_REDIRECT_URI` — `.env.prod`/compose에 반영). (2026-06-03)
-- [x] **(서버/콘솔 작업)** DNS A레코드 · Cafe24 방화벽 `stock_db` · 카카오 콘솔(운영 앱 `kh_stock` 신설) · `.env.prod` 비밀 주입 · certbot — **전부 완료 (2026-06-04)**, 기록은 `D:\server-infra.md`
-- [x] CI/CD: GitHub Actions `deploy.yml` — main 푸시 → 빌드 검증 → 프론트 dist scp + 서버 `git reset --hard`+`docker compose up -d --build`. (`backend/gradlew` exec bit 수정 포함)
-- [x] 배포 후 안정화 (2026-06-04): 가구 생성 후 **온보딩 무한루프 수정**(React Query 비활성 쿼리 invalidate → `refetchType:'all'`+Promise 반환), `/api/me` 실패 시 **에러 화면+로그아웃 탈출구**(`LoadErrorScreen`)
-- (해소) Client Secret 평문 노출 건 — 노출된 건 로컬 앱 키, 운영은 별도 앱(kh_stock)이라 무관. 로컬 앱 재발급은 선택.
+- [ ] **Web Push 운영 수신 확인** — 매일 9시(KST) 가구별 D-3 요약. ⚠ 06-06 전엔 컨테이너 TZ가 UTC라 18시(KST)에 발송됐을 수 있음(`6a3dd86`에서 Asia/Seoul 고정) → **06-07 오전 9시가 첫 정시 발송**. D-3 이내 만료 아이템이 1개 이상 있어야 발송됨. 미수신 시 `docker logs gotgan-app | grep 곧만료`
+- [ ] **분류 색상 운영 확인** — 시드 색 표시 + 어드민 색 변경 반영 (구현·빌드 검증 완료, 당시 DB 미가동으로 e2e만 미실행)
 - [ ] (선택) Hibernate `@Filter` 자동 테넌트 격리로 하드닝 — 현재는 서비스 계층 수동 격리
+- [ ] (v2 보류) 아이템 **사진 첨부** — 업로드·저장소·썸네일 인프라 필요. v1은 텍스트+이모지로 충분
 
-### 6. 보류/미정 (stock.md)  — 2026-06-03 정리 완료
-- [x] **SSE** → **드롭**. refetch-on-focus + optimistic + pull-to-refresh로 '열 때 항상 최신' 충족, 2인 가구에 서버 복잡도 대비 가치 낮음.
-- [x] 곧만료 **외부 푸시** — **구현 완료 (2026-06-04, 표준 Web Push/VAPID)**. 매일 아침 9시(KST) 가구별 D-3 요약을 구독 기기 전부에 발송.
-  - 백엔드: `push_subscription`(Flyway V4, endpoint upsert) · `/api/push`(vapid-public-key/subscriptions POST·DELETE) · `ExpiryPushScheduler`(@Scheduled 9시, 죽은 구독 410 자동정리) · `WebPushSender`(web-push 5.1.1 + BC jdk18on). VAPID 키: 로컬 기본값 커밋(개발용), 운영은 `.env.prod` 별도 키.
-  - 프론트: `public/sw.js`(push/notificationclick) · `manifest.webmanifest`+아이콘(PWA, iOS 필수) · `src/lib/push.ts` · 내정보 "유통기한 임박 알림" 토글(iOS는 홈 화면 추가 안내).
-  - 서버 `.env.prod` 운영 VAPID 키 주입 + 재배포 완료, 실기기(크롬) 토글 ON 완료 (2026-06-04)
-  - 인앱 브라우저(네이버/카톡)는 푸시 API 없음 → 토글 시 안내 메시지로 처리. 알림은 구독한 브라우저(크롬)가 받으므로 크롬 1회 ON 으로 충분.
-  - [ ] **운영 검증 잔여**: 다음 9시(KST)에 실제 수신 확인 — D-3 이내 만료 아이템이 1개 이상 있어야 발송됨. 미수신 시 `docker logs gotgan-app | grep 곧만료`
-- [x] 분류 **색상 부여** → **지금 구현** (2026-06-03, 아래 7번 참고).
-- [ ] 아이템 **사진 첨부** → **v2 보류**. 파일 업로드·저장소·썸네일 인프라 필요. 텍스트+이모지로 v1 충분.
+---
 
-### 7. 분류 색상  ✅ 완료 (2026-06-03)
-- [x] **DB**: `category.color VARCHAR(7)`(#rrggbb, nullable) — Flyway `V3__category_color.sql`(컬럼+시드 15개 색 백필). `db/01·02` 참조 스크립트도 동기화.
-- [x] **백엔드**: `Category.color` + 응답(`CategoryResponse`/`AdminCategoryResponse`/`ItemResponse.categoryColor`) + 요청(`Create/Update/ApproveRequest`에 `@Pattern ^$|^#[0-9a-fA-F]{6}$`). 빈값=색 제거. 컴파일 검증.
-- [x] **프론트**: `src/lib/colors.ts`(팔레트+`tintBg`). 어드민 추가/수정·승인에 색상 피커, ItemRow 아이콘 배경 틴트, CategoryPicker 칩·ItemForm 선택분류 색 점. 빌드 검증.
-- [ ] (DB 미가동으로 e2e 미검증) 8083+DB 기동 후 시드 색 표시·어드민 색 변경 반영 확인 필요.
+## ✅ 완료 이력 (요약 — 상세는 git log)
 
-### 8. 세션 유지/자동 로그인  ✅ 완료 (2026-06-04)
-- 배경: 모바일(특히 네이버/카톡 인앱 브라우저)에서 접속마다 카카오 로그인 버튼을 눌러야 했음 — 인앱 브라우저가 localStorage(JWT)를 수시로 날리는 게 원인(1일 TTL 문제 아님).
-- [x] **JWT_TTL 30일** — 운영 `.env.prod`에서 `JWT_TTL=2592000` 적용(env 변경만, 코드 무관).
-- [x] **무클릭 자동 로그인** — 토큰 없으면 `prompt=none&state=silent` 카카오 인가 자동 시도, 세션 있으면 클릭 없이 복귀. 로그아웃/실패 시 sessionStorage skip 플래그 + 60초 재시도 금지로 루프 방지. (`LoginPage`/`KakaoCallbackPage`/`lib/auth.ts`)
-- 한계: 인앱 브라우저는 카카오 쿠키까지 날려 silent 도 실패 가능 → 사용자 안내는 **PWA 설치**(크롬 → 홈 화면에 추가 = WebAPK, manifest+sw 요건 충족됨). 설치 시 로그인 화면 자체를 안 봄.
+### 코어 구현 (~2026-06-02)
+- DB 스키마 8테이블 + Flyway + 공통분류 시드 / 화면 시안 14화면
+- 백엔드: 카카오 로그인+자체 JWT, 테넌트 격리(`X-Household-Id`), 온보딩(가구 생성/합류/초대코드 — 상시 코드 1개+재발급, 6자 영숫자, max_members 4), 위치·아이템·이력·분류 API, 변동이력 자동기록, 소프트삭제, 곧만료 D-3
+- 프론트: 로그인·온보딩·초대·홈·위치상세·전체/검색·아이템 추가/편집·이력·내정보·위치 관리
+- **분류 추가 요청**(커뮤니티 요청 → 운영자 승인) + **플랫폼 어드민**(SYSTEM_ADMIN — 요청관리·공통분류 마스터 CRUD, `/error` permitAll 보안버그 수정 포함. 운영자 부여는 운영 DB `UPDATE app_user SET role='SYSTEM_ADMIN'`)
+- **가구 관리**(이름변경·멤버 내보내기·소유권 이양·나가기·삭제 cascade) / **표시명(닉네임) 입력**(카카오 동의항목 대체)
+
+### 다듬기 (06-03)
+- 분류 **색상**(V3 마이그레이션 + 어드민 피커 + ItemRow 틴트) / 아이템별 변동 이력 인라인 표시
+- 수량 증감 **낙관적 갱신**(실패 시 inverse-delta 롤백) + **당겨서 새로고침**(홈/전체/위치상세/이력)
+- 앱 이름 **곳간** 확정 / 초대코드 **카카오톡 공유**(JS SDK, 미지원 시 Web Share→복사 폴백)
+- 배포 준비: client-secret env 분리, compose+Dockerfile(멀티스테이지·비루트), nginx conf, CORS/redirect env화
+
+### 배포·운영 (06-04~06)
+- **운영 배포 가동**: HTTPS(certbot)·CI/CD(main 푸시 자동배포)·운영 카카오 앱 `kh_stock`·DBeaver 3312
+- 배포 후 안정화: 온보딩 무한루프 수정(`refetchType:'all'`), `/api/me` 실패 시 에러 화면+로그아웃 탈출구
+- **카톡 딥링크 합류**: 공유 버튼 → `/join?code=` → 코드 자동입력 원탭 합류 — 실기기 e2e 완료 (4019 트러블슈팅: `D:\server-infra.md`)
+- **곧만료 Web Push**(표준 VAPID): `push_subscription`(V4)·스케줄러(9시, 410 자동정리)·`sw.js`·PWA manifest·내정보 알림 토글. 인앱 브라우저는 푸시 API 없음 → 크롬 1회 ON으로 충분
+- **세션 유지**: JWT_TTL 30일 + 무클릭 자동 로그인(`prompt=none`, 실패 시 60초 재시도 금지). 인앱 브라우저 localStorage 증발 → PWA 설치 안내가 근본 해법
+- 인프라: 컨테이너 TZ=Asia/Seoul 고정, `stock-*`→`gotgan-*` rename, 인프라 문서 `D:\server-infra.md`로 SSOT 일원화
+
+### 드롭/대체 결정 (기록)
+- **SSE 드롭** — refetch-on-focus + optimistic + pull-to-refresh로 '열 때 항상 최신' 충족
+- **카카오 동의항목(닉네임/프로필)** — 표시명 직접 입력으로 대체, 설정 불필요
+- 로컬 앱 client-secret 노출 건 — 운영은 별도 앱(kh_stock)이라 무관, 재발급은 선택
+- 초기 설계 문서 `stock.md` 폐지(06-06) — 확정 결정 표는 `README.md`로 이관
 
 ---
 
@@ -86,3 +50,4 @@
 - 로컬 테스트 데이터 존재(유저 현규/예진/outsider, 가구 1, 아이템 등). 정리하려면 `db/` 재적용 또는 `TRUNCATE`.
 - 백엔드 코드 변경 후 8083 재시작 필요. 프론트 `.env.local` 변경 시 dev 서버 재시작.
 - 테스트 코드: 기본 `contextLoads`만 있음(DB 필요). 비즈니스 로직 테스트 미작성.
+- 개발용 로그인은 dev 프로파일 전용(`dev-token`, 어드민은 `"admin":true`) — 운영 빌드에서 제거됨.

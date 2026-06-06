@@ -8,17 +8,31 @@
 
 | 문서 | 내용 |
 |---|---|
-| [`stock.md`](stock.md) | 앱 설계 — 확정 결정(3D 제외, 멀티테넌트, 무료, 카카오 단독 인증), 데이터 모델, 화면 구성 |
-| [`TODO.md`](TODO.md) | 작업 현황 — 완료/남은 작업의 단일 목록 |
-| `D:\server-infra.md` | **운영 인프라 SSOT** — 서버/포트/배포 절차/CI/CD/카카오 앱 구성/운영 수칙 |
+| [`TODO.md`](TODO.md) | 작업 현황 — 남은 작업 + 완료 이력 |
+| `D:\server-infra.md` | **운영 인프라 SSOT**(로컬 전용, git 미추적) — 서버/포트/배포 절차/CI/CD/카카오 앱 구성/운영 수칙 |
 | [`db/SCHEMA.md`](db/SCHEMA.md) | DB 스키마(8테이블) 설계. 실제 스키마는 Flyway(`backend/.../db/migration`)가 소유 |
-| [`inventory_app_screens.html`](inventory_app_screens.html) | 화면 시안(14화면) |
+| [`inventory_app_screens.html`](inventory_app_screens.html) | 초기 화면 시안(14화면) |
+
+> 초기 설계 문서 `stock.md`는 전 항목 결정·구현 완료로 폐지(2026-06-06). 핵심 결정은 아래 표로 이관.
+
+## 설계 결정 (확정, 기록용)
+
+| 항목 | 결정 | 이유 |
+|---|---|---|
+| 멀티테넌트 | **가구(household) 단위** | 가계부앱 family-unit 구조 재사용. 모든 조회 `X-Household-Id` + `household_id` 필터 |
+| 인증 | **카카오 소셜 로그인 단독** | ID/PW·아이디/비번 찾기·이메일 인증 전부 제거 — 신원관리는 카카오가 담당 |
+| 과금 | **전부 무료** | 재고앱엔 유료화 포인트가 없음 |
+| 실시간 | **"열 때 항상 최신"** | SSE/WebSocket 드롭 — refetch on focus + optimistic update + pull-to-refresh로 충분 |
+| 3D 표시 | **제외** | 위치를 공간이 아닌 '분류(필터)'로 처리. 집 모델링 비용 대비 가치 낮음 |
+| 위치 계층 | **v1은 평평하게(1단계)** | 큰방>옷장>서랍 계층은 필요해지면 v2 |
+| 공통 멀티테넌트 모듈 | **추출 안 함** | 앱 2개(가계부+재고)일 땐 복사가 정답 — 3번째 앱 나오면 재검토 |
+| 아이템 사진 첨부 | **v2 보류** | 업로드·저장소·썸네일 인프라 필요. v1은 텍스트+이모지로 충분 |
 
 ## 스택 & 구조
 
 ```
 frontend/   React 19 + TS + Vite + Tailwind v4 + React Query v5   (dev 5173)
-backend/    Spring Boot + Java 17, 카카오 OAuth + 자체 JWT, Flyway  (8083)
+backend/    Spring Boot 4 + Java 17, 카카오 OAuth + 자체 JWT, Flyway  (8083)
 db/         스키마 참조용 SQL (실행 주체는 Flyway)
 deploy/     nginx 사이트 설정
 ```

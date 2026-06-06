@@ -1,6 +1,6 @@
-# CLAUDE.md — 곳간(stock)
+# CLAUDE.md — 곳간(gotgan)
 
-> 우리집 재고 관리 앱 (운영: https://gotgan.kyuhyeong.com). 앱 설계는 [`stock.md`](stock.md), 작업 현황은 [`TODO.md`](TODO.md) 참고.
+> 우리집 재고 관리 앱 (운영: https://gotgan.kyuhyeong.com). 설계 결정·문서 지도는 [`README.md`](README.md), 작업 현황은 [`TODO.md`](TODO.md) 참고. (초기 설계 문서 `stock.md`는 2026-06-06 폐지 — README로 이관)
 
 ## 서버 인프라 (SSOT 참조)
 
