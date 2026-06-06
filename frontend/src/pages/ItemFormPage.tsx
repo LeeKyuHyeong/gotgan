@@ -11,6 +11,8 @@ import {
 } from '../api/queries'
 import { AppHeader, Button, ErrorText, LoadingScreen } from '../components/ui'
 import CategoryPicker from '../components/CategoryPicker'
+import PresetPicker from '../components/PresetPicker'
+import { suggestPresets, type ItemPreset } from '../lib/presets'
 import { ACTION_LABEL, fmtDateTime } from '../lib/history'
 import { errorMessage } from '../api/client'
 
@@ -38,6 +40,7 @@ export default function ItemFormPage() {
   const [memo, setMemo] = useState('')
   const [err, setErr] = useState<string | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [presetOpen, setPresetOpen] = useState(false)
 
   // 편집: 기존 값 채우기
   useEffect(() => {
@@ -64,6 +67,16 @@ export default function ItemFormPage() {
 
   const selectedCategory =
     categoryId === '' ? null : categories?.find((c) => c.id === categoryId) ?? null
+
+  // 입력 중 실시간 추천 (완전 일치는 제외 → 선택 직후엔 사라짐)
+  const suggestions = suggestPresets(name)
+
+  function applyPreset(p: ItemPreset) {
+    setName(p.name)
+    const cat = categories?.find((c) => c.name === p.category)
+    if (cat) setCategoryId(cat.id)
+    if (p.unit && !unit.trim()) setUnit(p.unit)
+  }
 
   function submit() {
     setErr(null)
@@ -100,8 +113,36 @@ export default function ItemFormPage() {
       <AppHeader title={editing ? '아이템 편집' : '아이템 추가'} back />
       <div className="flex-1 space-y-4 px-5 pt-2">
         <div>
-          <label className={labelCls}>이름</label>
-          <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} />
+          <div className="mb-1.5 flex items-end justify-between">
+            <label className="text-[13px] font-semibold text-ink-soft">이름</label>
+            <button
+              type="button"
+              onClick={() => setPresetOpen(true)}
+              className="text-[13px] font-semibold text-brand"
+            >
+              자주 쓰는 품목 ›
+            </button>
+          </div>
+          <input
+            className={inputCls}
+            value={name}
+            placeholder="직접 입력하거나 자주 쓰는 품목에서 선택"
+            onChange={(e) => setName(e.target.value)}
+          />
+          {suggestions.length > 0 && (
+            <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
+              {suggestions.map((p) => (
+                <button
+                  key={p.name}
+                  type="button"
+                  onClick={() => applyPreset(p)}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full border border-line bg-surface px-3 py-1.5 text-[13px] font-semibold text-ink"
+                >
+                  <span>{p.emoji}</span> {p.name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div>
           <label className={labelCls}>위치</label>
@@ -225,6 +266,7 @@ export default function ItemFormPage() {
           onClose={() => setPickerOpen(false)}
         />
       )}
+      {presetOpen && <PresetPicker onPick={applyPreset} onClose={() => setPresetOpen(false)} />}
     </div>
   )
 }
