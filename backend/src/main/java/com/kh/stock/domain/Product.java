@@ -25,10 +25,10 @@ public class Product {
     @JoinColumn(name = "household_id", nullable = false)
     private Household household;
 
-    /** 선택적 그룹. NULL = 그룹 없음(단독 품목). */
+    /** 선택적 그룹. NULL = 그룹 없음(단독 품목). 필드명은 HQL 예약어 'group' 회피로 productGroup. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_group_id")
-    private ProductGroup group;
+    private ProductGroup productGroup;
 
     /** 전역 공통 분류. NULL = 미분류. (기존 item.category 에서 품목 레벨로 이동) */
     @ManyToOne(fetch = FetchType.LAZY)

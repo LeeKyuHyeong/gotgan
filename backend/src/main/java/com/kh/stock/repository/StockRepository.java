@@ -26,7 +26,7 @@ public interface StockRepository extends JpaRepository<Stock, Long> {
     @Query("""
             select s from Stock s
               join fetch s.product p
-              left join fetch p.group
+              left join fetch p.productGroup
               left join fetch p.category
               join fetch s.location
             where s.household.id = :householdId and s.deletedAt is null
@@ -45,7 +45,7 @@ public interface StockRepository extends JpaRepository<Stock, Long> {
                                           @Param("locationId") Long locationId,
                                           @Param("expiry") LocalDate expiry);
 
-    /** 되살리기: 같은 키의 소프트삭제 묶음(있으면 재사용). */
+    /** 되살리기 후보: 같은 키의 소프트삭제 묶음(최신 deletedAt 순). 호출자는 첫 원소만 사용. */
     @Query("""
             select s from Stock s
             where s.product.id = :productId and s.location.id = :locationId

@@ -14,7 +14,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Optional<Product> findByHousehold_IdAndName(Long householdId, String name);
 
     /** 그룹의 활성 품목 수(group cascade 판단). */
-    long countByGroup_IdAndDeletedAtIsNull(Long groupId);
+    long countByProductGroup_IdAndDeletedAtIsNull(Long groupId);
 
     /** 분류 삭제 가드: 이 분류를 쓰는 품목이 있는지(소프트삭제 포함 — 기존 item 가드와 동일 의미). */
     boolean existsByCategory_Id(Long categoryId);
@@ -22,7 +22,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     /** picker: 활성 재고가 1개 이상인 활성 품목(이름 검색 optional, 이름순). */
     @Query("""
             select distinct p from Product p
-            left join p.group g
             where p.household.id = :householdId and p.deletedAt is null
               and exists (select 1 from Stock s where s.product = p and s.deletedAt is null)
               and (:q is null or lower(p.name) like lower(concat('%', :q, '%')))
