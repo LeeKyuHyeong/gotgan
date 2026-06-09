@@ -59,12 +59,11 @@ public final class InventoryAssembler {
             }
         }
 
-        // 4) 그룹 합산 + 품목 이름순 정렬
-        //    참고: 제품 이름 정렬은 서비스 계층에서 쿼리 시 order by p.name 으로 보장된다.
-        //    어셈블러는 입력 순서(=DB 정렬 순서)를 그대로 유지한다.
+        // 4) 그룹 합산 + 품목 이름순 정렬(스펙: 그룹 내 품목은 이름 오름차순)
         List<InventoryResponse.Group> groups = new ArrayList<>();
         for (var e : byGroup.entrySet()) {
             List<InventoryResponse.Product> ps = e.getValue();
+            ps.sort(Comparator.comparing(InventoryResponse.Product::name));
             BigDecimal total = ps.stream().map(InventoryResponse.Product::totalQuantity)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             Long minDDay = ps.stream().map(InventoryResponse.Product::minDDay)

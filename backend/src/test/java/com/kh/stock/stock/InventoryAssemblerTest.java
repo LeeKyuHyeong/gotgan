@@ -49,7 +49,11 @@ class InventoryAssemblerTest {
         assertThat(beer.minDDay()).isEqualTo(3L);                         // 6/12 - 6/9
         assertThat(beer.expiringSoon()).isTrue();
         assertThat(beer.products()).hasSize(2);
-        InventoryResponse.Product can = beer.products().get(0);           // 이름순: 맥주 캔
+        // 그룹 내 품목은 이름 오름차순(스펙): 맥주 병(ㅂ) < 맥주 캔(ㅋ)
+        assertThat(beer.products()).extracting(InventoryResponse.Product::name)
+                .containsExactly("맥주 병", "맥주 캔");
+        InventoryResponse.Product can = beer.products().stream()
+                .filter(p -> p.productId() == 10L).findFirst().orElseThrow();
         assertThat(can.totalQuantity()).isEqualByComparingTo("3");
         assertThat(can.batches()).hasSize(2);
 
