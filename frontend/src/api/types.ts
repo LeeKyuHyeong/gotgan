@@ -105,24 +105,6 @@ export interface HomeResponse {
   locations: LocationCardResponse[]
 }
 
-export interface ItemResponse {
-  id: number
-  name: string
-  quantity: number
-  unit: string | null
-  expiryDate: string | null // ISO date 'yyyy-MM-dd'
-  memo: string | null
-  locationId: number
-  locationName: string
-  locationEmoji: string | null
-  categoryId: number | null
-  categoryName: string | null
-  categoryEmoji: string | null
-  categoryColor: string | null
-  dDay: number | null
-  expiringSoon: boolean
-}
-
 export interface HistoryResponse {
   id: number
   itemId: number
@@ -207,17 +189,6 @@ export interface AdminUpdateCategoryRequest {
   sortOrder?: number | null
   status?: CategoryStatus
 }
-
-export interface CreateItemRequest {
-  name: string
-  locationId: number
-  categoryId?: number | null
-  quantity: number
-  unit?: string | null
-  expiryDate?: string | null
-  memo?: string | null
-}
-export type UpdateItemRequest = CreateItemRequest
 
 // ===== 재고 정규화 (stock/product/inventory) =====
 

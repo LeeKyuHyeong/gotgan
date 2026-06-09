@@ -11,7 +11,6 @@ import type {
   CategoryRequestResponse,
   CategoryResponse,
   CreateCategoryRequestRequest,
-  CreateItemRequest,
   CreateLocationRequest,
   CreateStockRequest,
   HouseholdDetailResponse,
@@ -21,7 +20,6 @@ import type {
   HouseholdResponse,
   InventoryResponse,
   InviteResponse,
-  ItemResponse,
   LocationResponse,
   LoginResponse,
   MeResponse,
@@ -29,7 +27,6 @@ import type {
   ProductGroupResponse,
   ProductPickerResponse,
   StockResponse,
-  UpdateItemRequest,
   UpdateLocationRequest,
   UpdateStockRequest,
 } from './types'
@@ -251,110 +248,6 @@ export function useDeleteLocation() {
       await api.delete(`/api/locations/${locationId}`)
     },
     onSuccess: () => invalidateLocationViews(qc),
-  })
-}
-
-// ---------- 아이템 ----------
-export function useItems(params?: { locationId?: number; q?: string }) {
-  return useQuery({
-    queryKey: ['items', params ?? {}],
-    queryFn: async () =>
-      (await api.get<ItemResponse[]>('/api/items', { params })).data,
-  })
-}
-
-export function useItem(itemId: number) {
-  return useQuery({
-    queryKey: ['item', itemId],
-    queryFn: async () => (await api.get<ItemResponse>(`/api/items/${itemId}`)).data,
-    enabled: !!itemId,
-  })
-}
-
-function invalidateItemViews(qc: ReturnType<typeof useQueryClient>) {
-  qc.invalidateQueries({ queryKey: ['items'] })
-  qc.invalidateQueries({ queryKey: ['home'] })
-  qc.invalidateQueries({ queryKey: ['history'] })
-  qc.invalidateQueries({ queryKey: ['itemHistory'] })
-}
-
-/** 특정 아이템의 변동 이력(최신순). 편집 화면 인라인 표시용. */
-export function useItemHistory(itemId: number) {
-  return useQuery({
-    queryKey: ['itemHistory', itemId],
-    queryFn: async () =>
-      (await api.get<HistoryResponse[]>(`/api/items/${itemId}/history`)).data,
-    enabled: !!itemId,
-  })
-}
-
-export function useCreateItem() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (body: CreateItemRequest) =>
-      (await api.post<ItemResponse>('/api/items', body)).data,
-    onSuccess: () => invalidateItemViews(qc),
-  })
-}
-
-export function useUpdateItem(itemId: number) {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (body: UpdateItemRequest) =>
-      (await api.patch<ItemResponse>(`/api/items/${itemId}`, body)).data,
-    onSuccess: () => {
-      invalidateItemViews(qc)
-      qc.invalidateQueries({ queryKey: ['item', itemId] })
-    },
-  })
-}
-
-/** 캐시된 모든 아이템 목록/상세의 수량에 delta를 즉시 반영(낙관적 갱신·롤백 공용). */
-function patchCachedQuantity(qc: ReturnType<typeof useQueryClient>, itemId: number, delta: number) {
-  qc.setQueriesData<ItemResponse[]>({ queryKey: ['items'] }, (old) =>
-    old?.map((it) => (it.id === itemId ? { ...it, quantity: it.quantity + delta } : it)),
-  )
-  qc.setQueryData<ItemResponse>(['item', itemId], (old) =>
-    old ? { ...old, quantity: old.quantity + delta } : old,
-  )
-}
-
-export function useAdjustItem() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationKey: ['adjustItem'],
-    mutationFn: async ({ itemId, delta }: { itemId: number; delta: number }) =>
-      (await api.post<ItemResponse>(`/api/items/${itemId}/adjust`, { delta })).data,
-    // 낙관적: 클릭 즉시 화면 반영, 진행 중 refetch는 취소해 덮어쓰기 방지
-    onMutate: async ({ itemId, delta }) => {
-      await qc.cancelQueries({ queryKey: ['items'] })
-      await qc.cancelQueries({ queryKey: ['item', itemId] })
-      patchCachedQuantity(qc, itemId, delta)
-      return { itemId, delta }
-    },
-    onError: (_e, vars, ctx) => {
-      const c = ctx ?? vars
-      patchCachedQuantity(qc, c.itemId, -c.delta) // 실패 시 되돌리기
-    },
-    // 연타 중에는 마지막 증감만 서버값과 동기화 (중간값 깜빡임 방지). 이력은 항상 갱신.
-    onSettled: (_data, _err, vars) => {
-      qc.invalidateQueries({ queryKey: ['history'] })
-      qc.invalidateQueries({ queryKey: ['itemHistory', vars.itemId] })
-      qc.invalidateQueries({ queryKey: ['item', vars.itemId] })
-      if (qc.isMutating({ mutationKey: ['adjustItem'] }) === 0) {
-        qc.invalidateQueries({ queryKey: ['items'] })
-      }
-    },
-  })
-}
-
-export function useDeleteItem() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (itemId: number) => {
-      await api.delete(`/api/items/${itemId}`)
-    },
-    onSuccess: () => invalidateItemViews(qc),
   })
 }
 
