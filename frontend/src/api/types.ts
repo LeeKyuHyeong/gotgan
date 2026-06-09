@@ -218,3 +218,91 @@ export interface CreateItemRequest {
   memo?: string | null
 }
 export type UpdateItemRequest = CreateItemRequest
+
+// ===== 재고 정규화 (stock/product/inventory) =====
+
+export interface StockResponse {
+  id: number
+  productId: number
+  productName: string
+  unit: string | null
+  quantity: number
+  expiryDate: string | null // 'yyyy-MM-dd'
+  memo: string | null
+  locationId: number
+  locationName: string
+  locationEmoji: string | null
+  categoryId: number | null
+  categoryName: string | null
+  categoryEmoji: string | null
+  categoryColor: string | null
+  dDay: number | null
+  expiringSoon: boolean
+}
+
+export interface InventoryProduct {
+  productId: number
+  name: string
+  unit: string | null
+  categoryId: number | null
+  categoryName: string | null
+  categoryEmoji: string | null
+  categoryColor: string | null
+  totalQuantity: number
+  minDDay: number | null
+  expiringSoon: boolean
+  batches: StockResponse[]
+}
+
+export interface InventoryGroup {
+  groupId: number
+  groupName: string
+  totalQuantity: number
+  minDDay: number | null
+  expiringSoon: boolean
+  products: InventoryProduct[]
+}
+
+export interface InventoryResponse {
+  groups: InventoryGroup[]
+  ungrouped: InventoryProduct[]
+}
+
+export interface ProductPickerResponse {
+  id: number
+  name: string
+  unit: string | null
+  groupId: number | null
+  groupName: string | null
+  categoryId: number | null
+  categoryName: string | null
+}
+
+export interface ProductGroupResponse {
+  id: number
+  name: string
+}
+
+export interface NewProductInput {
+  name: string
+  unit?: string | null
+  categoryId?: number | null
+  groupId?: number | null
+  groupName?: string | null
+}
+
+export interface CreateStockRequest {
+  productId?: number | null
+  newProduct?: NewProductInput | null
+  locationId: number
+  quantity: number
+  expiryDate?: string | null
+  memo?: string | null
+}
+
+export interface UpdateStockRequest {
+  quantity: number
+  expiryDate?: string | null
+  memo?: string | null
+  locationId: number
+}
