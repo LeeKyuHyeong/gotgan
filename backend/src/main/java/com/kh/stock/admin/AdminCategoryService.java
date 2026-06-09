@@ -21,18 +21,18 @@ public class AdminCategoryService {
 
     private final CategoryRequestRepository requestRepository;
     private final CategoryRepository categoryRepository;
-    private final ItemRepository itemRepository;
+    private final ProductRepository productRepository;
     private final HouseholdRepository householdRepository;
     private final AppUserRepository userRepository;
 
     public AdminCategoryService(CategoryRequestRepository requestRepository,
                                 CategoryRepository categoryRepository,
-                                ItemRepository itemRepository,
+                                ProductRepository productRepository,
                                 HouseholdRepository householdRepository,
                                 AppUserRepository userRepository) {
         this.requestRepository = requestRepository;
         this.categoryRepository = categoryRepository;
-        this.itemRepository = itemRepository;
+        this.productRepository = productRepository;
         this.householdRepository = householdRepository;
         this.userRepository = userRepository;
     }
@@ -139,8 +139,8 @@ public class AdminCategoryService {
     public void deleteCategory(Long categoryId) {
         Category c = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> ApiException.notFound("분류를 찾을 수 없습니다."));
-        if (itemRepository.existsByCategory_Id(categoryId)) {
-            throw ApiException.conflict("이 분류를 사용하는 아이템이 있어 삭제할 수 없습니다. 대신 숨김 처리하세요.");
+        if (productRepository.existsByCategory_Id(categoryId)) {
+            throw ApiException.conflict("이 분류를 사용하는 품목이 있어 삭제할 수 없습니다. 대신 숨김 처리하세요.");
         }
         if (requestRepository.existsByResolvedCategory_Id(categoryId)) {
             throw ApiException.conflict("이 분류에 연결된 승인 이력이 있어 삭제할 수 없습니다. 대신 숨김 처리하세요.");

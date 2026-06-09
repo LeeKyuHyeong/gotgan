@@ -1,9 +1,9 @@
 package com.kh.stock.push;
 
 import com.kh.stock.domain.Household;
-import com.kh.stock.domain.Item;
+import com.kh.stock.domain.Stock;
 import com.kh.stock.domain.PushSubscription;
-import com.kh.stock.repository.ItemRepository;
+import com.kh.stock.repository.StockRepository;
 import com.kh.stock.repository.MembershipRepository;
 import com.kh.stock.repository.PushSubscriptionRepository;
 import org.slf4j.Logger;
@@ -32,16 +32,16 @@ public class ExpiryPushScheduler {
     private static final int EXPIRING_DAYS = 3;
     private static final int MAX_NAMES_IN_BODY = 3;
 
-    private final ItemRepository itemRepository;
+    private final StockRepository stockRepository;
     private final MembershipRepository membershipRepository;
     private final PushSubscriptionRepository subscriptionRepository;
     private final WebPushSender sender;
 
-    public ExpiryPushScheduler(ItemRepository itemRepository,
+    public ExpiryPushScheduler(StockRepository stockRepository,
                                MembershipRepository membershipRepository,
                                PushSubscriptionRepository subscriptionRepository,
                                WebPushSender sender) {
-        this.itemRepository = itemRepository;
+        this.stockRepository = stockRepository;
         this.membershipRepository = membershipRepository;
         this.subscriptionRepository = subscriptionRepository;
         this.sender = sender;
@@ -55,14 +55,14 @@ public class ExpiryPushScheduler {
             return;
         }
         LocalDate today = LocalDate.now(KST);
-        List<Item> items = itemRepository.findAllExpiringForNotify(today, today.plusDays(EXPIRING_DAYS));
+        List<Stock> items = stockRepository.findAllExpiringForNotify(today, today.plusDays(EXPIRING_DAYS));
         if (items.isEmpty()) {
             return;
         }
 
         // 가구별로 묶어 한 가구 = 한 메시지 (멤버의 모든 구독 기기로)
-        Map<Household, List<Item>> byHousehold = items.stream()
-                .collect(Collectors.groupingBy(Item::getHousehold, LinkedHashMap::new, Collectors.toList()));
+        Map<Household, List<Stock>> byHousehold = items.stream()
+                .collect(Collectors.groupingBy(Stock::getHousehold, LinkedHashMap::new, Collectors.toList()));
 
         int sent = 0;
         int removed = 0;
@@ -86,10 +86,10 @@ public class ExpiryPushScheduler {
     }
 
     /** 예: 유통기한 임박 4개 — 우유 오늘, 계란 D-1, 두부 D-3 외 1개 */
-    private String buildPayload(Household household, List<Item> items, LocalDate today) {
+    private String buildPayload(Household household, List<Stock> items, LocalDate today) {
         String names = items.stream()
                 .limit(MAX_NAMES_IN_BODY)
-                .map(i -> i.getName() + " " + dLabel(today, i.getExpiryDate()))
+                .map(i -> i.getProduct().getName() + " " + dLabel(today, i.getExpiryDate()))
                 .collect(Collectors.joining(", "));
         int rest = items.size() - MAX_NAMES_IN_BODY;
         String body = "유통기한 임박 " + items.size() + "개 — " + names + (rest > 0 ? " 외 " + rest + "개" : "");

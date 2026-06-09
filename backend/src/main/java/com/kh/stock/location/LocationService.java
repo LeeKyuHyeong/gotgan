@@ -1,11 +1,11 @@
 package com.kh.stock.location;
 
 import com.kh.stock.common.ApiException;
-import com.kh.stock.domain.Item;
+import com.kh.stock.domain.Stock;
 import com.kh.stock.domain.StorageLocation;
 import com.kh.stock.location.dto.*;
 import com.kh.stock.repository.HouseholdRepository;
-import com.kh.stock.repository.ItemRepository;
+import com.kh.stock.repository.StockRepository;
 import com.kh.stock.repository.StorageLocationRepository;
 import com.kh.stock.tenant.TenantContext;
 import org.springframework.stereotype.Service;
@@ -27,14 +27,14 @@ public class LocationService {
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private final StorageLocationRepository locationRepository;
-    private final ItemRepository itemRepository;
+    private final StockRepository stockRepository;
     private final HouseholdRepository householdRepository;
 
     public LocationService(StorageLocationRepository locationRepository,
-                           ItemRepository itemRepository,
+                           StockRepository stockRepository,
                            HouseholdRepository householdRepository) {
         this.locationRepository = locationRepository;
-        this.itemRepository = itemRepository;
+        this.stockRepository = stockRepository;
         this.householdRepository = householdRepository;
     }
 
@@ -43,7 +43,7 @@ public class LocationService {
     public HomeResponse getHome() {
         Long hid = TenantContext.require();
         List<StorageLocation> locations = locationRepository.findByHouseholdIdOrderBySortOrderAsc(hid);
-        List<Item> items = itemRepository.findActiveByHousehold(hid);
+        List<Stock> items = stockRepository.findActiveByHousehold(hid);
 
         LocalDate today = LocalDate.now(KST);
         LocalDate soonEnd = today.plusDays(EXPIRING_DAYS);
@@ -65,7 +65,7 @@ public class LocationService {
         return new HomeResponse(items.size(), totalExpiring, cards);
     }
 
-    private boolean isExpiringSoon(Item i, LocalDate today, LocalDate soonEnd) {
+    private boolean isExpiringSoon(Stock i, LocalDate today, LocalDate soonEnd) {
         LocalDate d = i.getExpiryDate();
         return d != null && !d.isBefore(today) && !d.isAfter(soonEnd);
     }
@@ -108,8 +108,8 @@ public class LocationService {
     @Transactional
     public void delete(Long locationId) {
         StorageLocation l = requireOwned(locationId);
-        if (itemRepository.existsByLocation_IdAndDeletedAtIsNull(l.getId())) {
-            throw ApiException.conflict("이 위치에 아이템이 남아있어 삭제할 수 없습니다. 먼저 아이템을 옮기거나 삭제하세요.");
+        if (stockRepository.existsByLocation_IdAndDeletedAtIsNull(l.getId())) {
+            throw ApiException.conflict("이 위치에 재고가 남아있어 삭제할 수 없습니다. 먼저 재고를 옮기거나 삭제하세요.");
         }
         locationRepository.delete(l);
     }

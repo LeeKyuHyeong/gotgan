@@ -12,8 +12,8 @@ public interface ItemHistoryRepository extends JpaRepository<ItemHistory, Long> 
     /** 이력 탭: 가구의 변동 이력(최신순, 페이지). */
     Page<ItemHistory> findByHouseholdIdOrderByCreatedAtDesc(Long householdId, Pageable pageable);
 
-    /** 특정 아이템의 이력. */
-    List<ItemHistory> findByItemIdOrderByCreatedAtDesc(Long itemId);
+    /** 특정 묶음의 이력. */
+    List<ItemHistory> findByStockIdOrderByCreatedAtDesc(Long stockId);
 
     /** 가구 삭제 시 정리. */
     void deleteByHouseholdId(Long householdId);
