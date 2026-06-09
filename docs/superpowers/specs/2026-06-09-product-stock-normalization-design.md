@@ -54,6 +54,8 @@ product_group  (선택적 그룹: 맥주, 소주)
   `deleted_at`, `created_at`, `updated_at`
 - `(product_id, location_id, expiry_date)`당 하나의 묶음을 의도. 같은 3요소(둘 다 null 포함)면 합산,
   유통기한이 다르면 새 묶음.
+- **DB 유니크는 걸지 않음** — NULL이 유니크 인덱스에서 distinct로 취급돼 `(…, NULL)` 중복을 못 막음.
+  합산은 **애플리케이션 로직 전용**이며, 조회 시 유통기한 비교는 null-safe(`expiry_date <=> ?`)로 한다.
 - 인덱스: `(household_id, deleted_at)`, `(location_id, deleted_at)`, `(household_id, expiry_date)`(D-3 알림)
 
 ### item_history (변동 이력) — 수정
@@ -149,15 +151,24 @@ product_group  (선택적 그룹: 맥주, 소주)
   `migrated_stock_id BIGINT NULL` 추가. (스키마 변경만)
 - **V7 (Flyway Java migration, `db/migration/V7__migrate_items_to_stock.java`)**: `JdbcTemplate`으로
   데이터 이관:
-  1. 기존 `item`(활성·소프트삭제 포함)을 `(household_id, name, COALESCE(unit,''), category_id)` 단위로
-     묶어 `product` 생성(같은 묶음 → 하나의 product, `product_group_id`=NULL).
+  0. (사전·완료됨 2026-06-09) 정크 행 `뭉치`(id=2 — 친구가 장난으로 입력한 고양이 이름)와 그 `item_history`를
+     운영 DB에서 이미 수동 삭제함. V7은 정상 데이터만 다룸(코드에 선삭제 로직 불필요).
+  1. 기존 `item`(활성·소프트삭제 포함)을 **`(household_id, name)`** 단위로 묶어 `product` 생성.
+     운영 실측상 `(household_id, name)` 중복 0건 → 1:1 매핑이며, `unit`·`category_id`는 그 행 값 그대로,
+     `product_group_id`=NULL. 그룹핑 키를 product 유니크 `(household_id, name)`와 일치시켜 충돌을 원천 차단.
+     그룹의 **모든 원본 item이 소프트삭제면 `product.deleted_at`도 설정**(cascade 불변식 보존).
   2. 각 item 행을 `stock`으로 이전: `product_id`, `location_id`, `quantity`, `expiry_date`, `memo`,
      `deleted_at`(원본 유지), `household_id`. 생성된 `stock.id`를 `item.migrated_stock_id`에 기록.
-  3. `item_history.item_id` → `item.migrated_stock_id` 조인으로 `stock.id`로 재매핑.
-  4. 검증: `count(stock) == count(item)`, `count(item_history)` 불변, 가구별 합계 수량 보존.
+  3. 이력 재배선은 **V8에서 수행** — FK가 아직 `item`을 가리키는 동안 `stock.id`로 repoint하면 FK 위반.
+  4. 검증: `count(stock) == count(item)`(선삭제분 제외), `count(item_history)` 불변, 가구별 합계 수량 보존.
      불일치 시 예외로 마이그레이션 실패(롤백).
-- **V8 (SQL)**: `item_history`의 FK를 `item` → `stock`으로 교체(컬럼명 `item_id` → `stock_id`),
-  `item` → `item_legacy` rename(즉시 드롭 안 함, 롤백 안전망), `item.migrated_stock_id` 임시 컬럼은 보존.
+- **V8 (SQL)**: 이력 FK 재배선을 **순서대로** 수행 —
+  (1) 기존 FK `fk_history_item`(→ `item`) drop,
+  (2) `UPDATE item_history h JOIN item i ON h.item_id = i.id SET h.item_id = i.migrated_stock_id`로 값 repoint,
+  (3) 컬럼명 `item_id` → `stock_id` rename,
+  (4) 새 FK(`→ stock`) 추가.
+  그 다음 `item` → `item_legacy` rename(즉시 드롭 안 함, 롤백 안전망), `migrated_stock_id` 임시 컬럼은 보존.
+  > FK가 `item`을 가리키는 동안엔 `stock.id` 값으로 repoint가 불가(FK 위반)하므로 반드시 drop이 선행돼야 한다.
 
 > Flyway Java migration은 `classpath:db/migration` 패키지(`db.migration`)에 `V7__...` 클래스로 두며
 > `BaseJavaMigration` 상속. 트랜잭션 경계·대량 처리는 가구 데이터 규모(가정용, 수백 행)상 단일 트랜잭션으로 충분.
@@ -180,4 +191,7 @@ product_group  (선택적 그룹: 맥주, 소주)
 
 1. inventory 응답 DTO 형태(중첩 트리 vs 평면 + groupId) 최종 확정 — 계획에서 결정.
 
-(확정됨: 마이그레이션 = Java 기반 이관(V6 스키마 / V7 Java / V8 정리). PATCH = 단순 갱신, 자동 합치기 없음.)
+(확정됨: 마이그레이션 = Java 기반 이관(V6 스키마 / V7 Java / V8 정리). PATCH = 단순 갱신, 자동 합치기 없음.
+V7 그룹핑 키 = `(household_id, name)`로 product 유니크와 일치(충돌 0건 실측). V8에서 이력 FK를
+drop→repoint→rename→재생성 순으로 재배선. 정크 행 `뭉치`는 운영 DB에서 선삭제 완료(2026-06-09).
+stock은 DB 유니크 없이 앱 로직으로 합산, 유통기한은 null-safe 비교.)
