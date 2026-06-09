@@ -78,4 +78,21 @@ class InventoryAssemblerTest {
         assertThat(res.ungrouped().get(0).minDDay()).isNull();
         assertThat(res.ungrouped().get(0).expiringSoon()).isFalse();
     }
+
+    @Test
+    void expired_batch_yields_negative_minDDay_consistent_with_app_dDay_convention() {
+        // 만료 지난 묶음(dDay<0)은 음수 minDDay로 노출(기존 앱 dDay 관례: "지났으면 음수"), expiringSoon=false
+        List<StockResponse> batches = List.of(
+                batch(1, 40, "계란", "1", LocalDate.of(2026, 6, 4), 1, "냉장고"),   // D-5(지남)
+                batch(2, 40, "계란", "1", LocalDate.of(2026, 6, 20), 1, "냉장고")   // D+11
+        );
+        Map<Long, ProductMeta> meta = Map.of(
+                40L, new ProductMeta(40L, "계란", "개", null, null, null, null, null, null));
+
+        InventoryResponse res = InventoryAssembler.assemble(batches, meta);
+
+        InventoryResponse.Product egg = res.ungrouped().get(0);
+        assertThat(egg.minDDay()).isEqualTo(-5L);
+        assertThat(egg.expiringSoon()).isFalse();
+    }
 }
