@@ -24,7 +24,7 @@
 
 **신규 (도메인/리포지토리):**
 - `backend/src/main/resources/db/migration/V6__product_stock_schema.sql` — 3계층 테이블 + `item.migrated_stock_id`
-- `backend/src/main/resources/db/migration/V7__migrate_items_to_stock.java` — 데이터 이관(Java)
+- `backend/src/main/java/db/migration/V7__migrate_items_to_stock.java` — 데이터 이관(Java). **반드시 `src/main/java`** 아래(컴파일돼 classpath 클래스가 돼야 Flyway가 발견). resources에 두면 컴파일 안 돼 조용히 스킵됨.
 - `backend/src/main/resources/db/migration/V8__history_fk_and_legacy_rename.sql` — 이력 FK 재배선 + `item`→`item_legacy`
 - `backend/src/main/java/com/kh/stock/domain/ProductGroup.java`
 - `backend/src/main/java/com/kh/stock/domain/Product.java`
@@ -870,7 +870,7 @@ git commit -m "feat(inventory): InventoryAssembler 합산 트리 조립 + 단위
 ## Task 5: V7 데이터 이관 (Java)
 
 **Files:**
-- Create: `backend/src/main/resources/db/migration/V7__migrate_items_to_stock.java`
+- Create: `backend/src/main/java/db/migration/V7__migrate_items_to_stock.java` (⚠️ `src/main/java`, NOT resources — Java 마이그레이션은 컴파일된 클래스여야 Flyway가 발견)
 
 - [ ] **Step 1: V7 Java 마이그레이션 작성**
 
@@ -1007,7 +1007,7 @@ public class V7__migrate_items_to_stock extends BaseJavaMigration {
 }
 ```
 
-> Flyway는 `classpath:db/migration` 아래의 `BaseJavaMigration` 구현 클래스를 자동 발견한다. 패키지 선언은 반드시 `package db.migration;`. Spring Boot의 `spring-boot-starter-flyway`가 클래스패스 콜백/마이그레이션을 스캔하므로 별도 설정 불필요.
+> Flyway는 `classpath:db/migration` 아래의 **컴파일된** `BaseJavaMigration` 구현 클래스를 자동 발견한다. ⚠️ **파일 위치는 `src/main/java/db/migration/`** (소스가 컴파일돼 `build/classes/.../db/migration/V7__...class`로 classpath에 올라가야 함). `src/main/resources/`에 두면 Gradle이 텍스트로 복사만 하고 컴파일하지 않아 Flyway가 **조용히 스킵**하고 V6→V8로 건너뛴다(검증 없이 V8이 NULL `migrated_stock_id`로 실패). 패키지 선언은 반드시 `package db.migration;`. SQL 마이그레이션(V6/V8)은 그대로 `src/main/resources/db/migration/`.
 
 (부팅 검증은 Task 12에서 V8과 함께.)
 
