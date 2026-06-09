@@ -23,8 +23,6 @@ import java.util.List;
 public class StockService {
 
     private final StockRepository stockRepository;
-    private final ProductRepository productRepository;
-    private final ProductGroupRepository groupRepository;
     private final ItemHistoryRepository historyRepository;
     private final StorageLocationRepository locationRepository;
     private final HouseholdRepository householdRepository;
@@ -32,16 +30,12 @@ public class StockService {
     private final ProductService productService;
 
     public StockService(StockRepository stockRepository,
-                        ProductRepository productRepository,
-                        ProductGroupRepository groupRepository,
                         ItemHistoryRepository historyRepository,
                         StorageLocationRepository locationRepository,
                         HouseholdRepository householdRepository,
                         AppUserRepository userRepository,
                         ProductService productService) {
         this.stockRepository = stockRepository;
-        this.productRepository = productRepository;
-        this.groupRepository = groupRepository;
         this.historyRepository = historyRepository;
         this.locationRepository = locationRepository;
         this.householdRepository = householdRepository;

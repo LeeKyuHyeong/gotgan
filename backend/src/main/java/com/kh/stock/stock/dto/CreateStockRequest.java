@@ -13,7 +13,7 @@ public record CreateStockRequest(
         Long productId,
         @Valid NewProductInput newProduct,
         @NotNull Long locationId,
-        @NotNull @DecimalMin("0") BigDecimal quantity,
+        @NotNull @DecimalMin(value = "0", inclusive = false) BigDecimal quantity,
         LocalDate expiryDate,
         @Size(max = 255) String memo
 ) {}
