@@ -276,7 +276,7 @@ export default function StockAddPage() {
       )}
       {presetOpen && <PresetPicker onPick={applyPreset} onClose={() => setPresetOpen(false)} />}
       {productOpen && (
-        <ProductPicker onPick={(p) => setPicked(p)} onClose={() => setProductOpen(false)} />
+        <ProductPicker onPick={setPicked} onClose={() => setProductOpen(false)} />
       )}
     </div>
   )

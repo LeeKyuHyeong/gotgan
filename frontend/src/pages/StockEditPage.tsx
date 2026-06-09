@@ -46,7 +46,7 @@ export default function StockEditPage() {
     setErr(null)
     if (locationId === '') return setErr('위치를 선택하세요.')
     const qty = Number(quantity)
-    if (qty < 0) return setErr('수량은 0보다 작을 수 없어요.')
+    if (isNaN(qty) || qty < 0) return setErr('수량은 0 이상의 숫자여야 해요.')
     update.mutate(
       { quantity: qty, expiryDate: expiryDate || null, memo: memo.trim() || null, locationId: Number(locationId) },
       { onSuccess: () => navigate(-1), onError: (e) => setErr(errorMessage(e)) },
