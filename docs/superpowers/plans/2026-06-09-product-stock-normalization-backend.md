@@ -233,10 +233,10 @@ public class Product {
     @JoinColumn(name = "household_id", nullable = false)
     private Household household;
 
-    /** 선택적 그룹. NULL = 그룹 없음(단독 품목). */
+    /** 선택적 그룹. NULL = 그룹 없음(단독 품목). 필드명은 HQL 예약어 'group' 회피로 productGroup. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_group_id")
-    private ProductGroup group;
+    private ProductGroup productGroup;
 
     /** 전역 공통 분류. NULL = 미분류. (기존 item.category 에서 품목 레벨로 이동) */
     @ManyToOne(fetch = FetchType.LAZY)
@@ -367,14 +367,14 @@ public interface ProductGroupRepository extends JpaRepository<ProductGroup, Long
     List<ProductGroup> findByHousehold_IdAndDeletedAtIsNullOrderBySortOrderAscNameAsc(Long householdId);
 
     /** 그룹의 활성 품목 수(cascade 판단). */
-    long countByGroup_IdAndDeletedAtIsNull(Long groupId);
+    long countByProductGroup_IdAndDeletedAtIsNull(Long groupId);
 
     /** 가구 삭제 정리(소프트삭제 무관). */
     void deleteByHousehold_Id(Long householdId);
 }
 ```
 
-> 마지막 메서드명 충돌 주의: `countByGroup_IdAndDeletedAtIsNull`은 **Product** 기준이므로 ProductRepository에 둔다. (아래 Step 2 참조) — ProductGroupRepository에서는 이 메서드를 제거하고 ProductRepository로 옮길 것.
+> 마지막 메서드명 충돌 주의: `countByProductGroup_IdAndDeletedAtIsNull`은 **Product** 기준이므로 ProductRepository에 둔다. (아래 Step 2 참조) — ProductGroupRepository에서는 이 메서드를 제거하고 ProductRepository로 옮길 것.
 
 정정된 ProductGroupRepository:
 
@@ -416,7 +416,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Optional<Product> findByHousehold_IdAndName(Long householdId, String name);
 
     /** 그룹의 활성 품목 수(group cascade 판단). */
-    long countByGroup_IdAndDeletedAtIsNull(Long groupId);
+    long countByProductGroup_IdAndDeletedAtIsNull(Long groupId);
 
     /** 분류 삭제 가드: 이 분류를 쓰는 품목이 있는지(소프트삭제 포함 — 기존 item 가드와 동일 의미). */
     boolean existsByCategory_Id(Long categoryId);
@@ -424,7 +424,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     /** picker: 활성 재고가 1개 이상인 활성 품목(이름 검색 optional, 이름순). */
     @Query("""
             select distinct p from Product p
-            left join p.group g
+            left join fetch p.productGroup
+            left join fetch p.category
             where p.household.id = :householdId and p.deletedAt is null
               and exists (select 1 from Stock s where s.product = p and s.deletedAt is null)
               and (:q is null or lower(p.name) like lower(concat('%', :q, '%')))
@@ -468,7 +469,7 @@ public interface StockRepository extends JpaRepository<Stock, Long> {
     @Query("""
             select s from Stock s
               join fetch s.product p
-              left join fetch p.group
+              left join fetch p.productGroup
               left join fetch p.category
               join fetch s.location
             where s.household.id = :householdId and s.deletedAt is null
@@ -703,7 +704,11 @@ class InventoryAssemblerTest {
         assertThat(beer.minDDay()).isEqualTo(3L);                         // 6/12 - 6/9
         assertThat(beer.expiringSoon()).isTrue();
         assertThat(beer.products()).hasSize(2);
-        InventoryResponse.Product can = beer.products().get(0);           // 이름순: 맥주 캔
+        // 그룹 내 품목은 이름 오름차순(스펙 "그룹 내 품목은 이름/정렬순"): 맥주 병(ㅂ) < 맥주 캔(ㅋ)
+        assertThat(beer.products()).extracting(InventoryResponse.Product::name)
+                .containsExactly("맥주 병", "맥주 캔");
+        InventoryResponse.Product can = beer.products().stream()
+                .filter(p -> p.productId() == 10L).findFirst().orElseThrow();
         assertThat(can.totalQuantity()).isEqualByComparingTo("3");
         assertThat(can.batches()).hasSize(2);
 
@@ -728,6 +733,23 @@ class InventoryAssemblerTest {
         assertThat(res.ungrouped().get(0).minDDay()).isNull();
         assertThat(res.ungrouped().get(0).expiringSoon()).isFalse();
     }
+
+    @Test
+    void expired_batch_yields_negative_minDDay_consistent_with_app_dDay_convention() {
+        // 만료 지난 묶음(dDay<0)은 음수 minDDay로 노출(기존 앱 dDay 관례: "지났으면 음수"), expiringSoon=false
+        List<StockResponse> batches = List.of(
+                batch(1, 40, "계란", "1", LocalDate.of(2026, 6, 4), 1, "냉장고"),   // D-5(지남)
+                batch(2, 40, "계란", "1", LocalDate.of(2026, 6, 20), 1, "냉장고")   // D+11
+        );
+        Map<Long, ProductMeta> meta = Map.of(
+                40L, new ProductMeta(40L, "계란", "개", null, null, null, null, null, null));
+
+        InventoryResponse res = InventoryAssembler.assemble(batches, meta);
+
+        InventoryResponse.Product egg = res.ungrouped().get(0);
+        assertThat(egg.minDDay()).isEqualTo(-5L);
+        assertThat(egg.expiringSoon()).isFalse();
+    }
 }
 ```
 
@@ -750,8 +772,10 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
-/** 묶음 평면 목록 + 품목 메타 → 그룹/품목 합산 트리. 순수 함수(DB 비의존). */
+/** 묶음 평면 목록 + 품목 메타 → 그룹/품목 합산 트리. 순수 함수(DB 비의존).
+ *  계약: meta는 batches의 모든 productId를 포함해야 함(누락 시 명확한 예외). */
 public final class InventoryAssembler {
 
     private InventoryAssembler() {}
@@ -773,7 +797,8 @@ public final class InventoryAssembler {
         // 2) 품목 합산 행 만들기
         Map<Long, InventoryResponse.Product> products = new LinkedHashMap<>();
         for (var e : byProduct.entrySet()) {
-            ProductMeta m = meta.get(e.getKey());
+            ProductMeta m = Objects.requireNonNull(meta.get(e.getKey()),
+                    () -> "missing ProductMeta for productId=" + e.getKey());
             List<StockResponse> bs = e.getValue();
             BigDecimal total = bs.stream().map(StockResponse::quantity)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -783,7 +808,7 @@ public final class InventoryAssembler {
             products.put(e.getKey(), new InventoryResponse.Product(
                     m.productId(), m.name(), m.unit(),
                     m.categoryId(), m.categoryName(), m.categoryEmoji(), m.categoryColor(),
-                    total, minDDay, soon, bs));
+                    total, minDDay, soon, List.copyOf(bs)));
         }
 
         // 3) 그룹 묶기
@@ -791,7 +816,8 @@ public final class InventoryAssembler {
         Map<Long, String> groupName = new LinkedHashMap<>();
         List<InventoryResponse.Product> ungrouped = new ArrayList<>();
         for (var e : products.entrySet()) {
-            ProductMeta m = meta.get(e.getKey());
+            ProductMeta m = Objects.requireNonNull(meta.get(e.getKey()),
+                    () -> "missing ProductMeta for productId=" + e.getKey());
             if (m.groupId() != null) {
                 byGroup.computeIfAbsent(m.groupId(), k -> new ArrayList<>()).add(e.getValue());
                 groupName.putIfAbsent(m.groupId(), m.groupName());
@@ -897,6 +923,8 @@ public class V7__migrate_items_to_stock extends BaseJavaMigration {
             ProdKey key = new ProdKey(household, name);
             Timestamp deletedAt = (Timestamp) it.get("deleted_at");
             allDeleted.merge(key, deletedAt != null, (a, b) -> a && b);
+            // 그룹 전체가 소프트삭제일 때 product.deleted_at에 쓸 대표 시각.
+            // cascade 불변식엔 non-null이기만 하면 되므로 첫 값으로 충분(정확한 시각 불요).
             if (deletedAt != null) anyDeletedAt.putIfAbsent(key, deletedAt);
 
             if (!productIds.containsKey(key)) {
@@ -1011,9 +1039,16 @@ ALTER TABLE item_history ADD KEY idx_history_stock (stock_id);
 
 -- 5) item → item_legacy 백업 rename (즉시 드롭 안 함, 롤백 안전망). migrated_stock_id 컬럼 보존.
 RENAME TABLE item TO item_legacy;
+
+-- 6) item_legacy(백업)의 RESTRICT FK 제거.
+--    legacy 행이 storage_location/category 행을 RESTRICT로 붙들고 있으면, 가구 삭제 시
+--    locationRepository.deleteByHouseholdId(가구 삭제 전 단계)가 FK 위반으로 실패한다.
+--    household FK(ON DELETE CASCADE)만 남겨 가구 삭제 시 legacy 행이 자동 정리되게 한다.
+ALTER TABLE item_legacy DROP FOREIGN KEY fk_item_location;
+ALTER TABLE item_legacy DROP FOREIGN KEY fk_item_category;
 ```
 
-> `item_legacy`는 기존 FK(`fk_item_household` ON DELETE CASCADE 등)를 그대로 유지한다. 가구 삭제 시 DB 레벨에서 함께 정리되며 백업 목적상 무방.
+> `item_legacy`는 `fk_item_household`(ON DELETE CASCADE)만 유지한다. 가구 삭제 시 DB가 legacy 행을 함께 정리한다. 위치/분류 FK는 제거(백업 데이터 보존이 목적이라 참조무결성 불필요). 완전 롤백 시엔 두 FK를 재추가해야 한다.
 
 ## Task 7: ItemHistory 엔티티 — Stock 참조로 변경
 
@@ -1154,7 +1189,7 @@ public record ProductResponse(
         String categoryName
 ) {
     public static ProductResponse from(Product p) {
-        var g = p.getGroup();
+        var g = p.getProductGroup();
         var c = p.getCategory();
         return new ProductResponse(
                 p.getId(), p.getName(), p.getUnit(),
@@ -1246,7 +1281,7 @@ public class ProductService {
             existing.setDeletedAt(null);
             existing.setUnit(in.unit());
             if (category != null) existing.setCategory(category);
-            if (group != null) existing.setGroup(group);
+            if (group != null) existing.setProductGroup(group);
             return existing;
         }
         Product p = new Product();
@@ -1254,7 +1289,7 @@ public class ProductService {
         p.setName(name);
         p.setUnit(in.unit());
         p.setCategory(category);
-        p.setGroup(group);
+        p.setProductGroup(group);
         return productRepository.save(p);
     }
 
@@ -1303,7 +1338,7 @@ public class ProductService {
     public ProductGroup softDeleteIfEmpty(Product product, long activeStockCount) {
         if (activeStockCount > 0 || product.getDeletedAt() != null) return null;
         product.setDeletedAt(java.time.LocalDateTime.now());
-        return product.getGroup();
+        return product.getProductGroup();
     }
 
     /** group 활성 품목 0 → 소프트삭제. */
@@ -1311,7 +1346,7 @@ public class ProductService {
     public void softDeleteGroupIfEmpty(ProductGroup group) {
         if (group == null || group.getDeletedAt() != null) return;
         if (groupRepository == null) return;
-        long active = productRepository.countByGroup_IdAndDeletedAtIsNull(group.getId());
+        long active = productRepository.countByProductGroup_IdAndDeletedAtIsNull(group.getId());
         if (active == 0) group.setDeletedAt(java.time.LocalDateTime.now());
     }
 }
@@ -1601,7 +1636,7 @@ public class InventoryService {
     }
 
     private ProductMeta toMeta(Product p) {
-        var g = p.getGroup();
+        var g = p.getProductGroup();
         var c = p.getCategory();
         return new ProductMeta(
                 p.getId(), p.getName(), p.getUnit(),

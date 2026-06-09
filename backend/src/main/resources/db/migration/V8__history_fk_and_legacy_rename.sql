@@ -18,3 +18,10 @@ ALTER TABLE item_history ADD KEY idx_history_stock (stock_id);
 
 -- 5) item → item_legacy 백업 rename (즉시 드롭 안 함, 롤백 안전망). migrated_stock_id 컬럼 보존.
 RENAME TABLE item TO item_legacy;
+
+-- 6) item_legacy(백업)의 RESTRICT FK 제거.
+--    legacy 행이 storage_location/category 행을 RESTRICT로 붙들고 있으면, 가구 삭제 시
+--    locationRepository.deleteByHouseholdId(가구 삭제 전 단계)가 FK 위반으로 실패한다.
+--    household FK(ON DELETE CASCADE)만 남겨 가구 삭제 시 legacy 행이 자동 정리되게 한다.
+ALTER TABLE item_legacy DROP FOREIGN KEY fk_item_location;
+ALTER TABLE item_legacy DROP FOREIGN KEY fk_item_category;

@@ -22,6 +22,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     /** picker: 활성 재고가 1개 이상인 활성 품목(이름 검색 optional, 이름순). */
     @Query("""
             select distinct p from Product p
+            left join fetch p.productGroup
+            left join fetch p.category
             where p.household.id = :householdId and p.deletedAt is null
               and exists (select 1 from Stock s where s.product = p and s.deletedAt is null)
               and (:q is null or lower(p.name) like lower(concat('%', :q, '%')))

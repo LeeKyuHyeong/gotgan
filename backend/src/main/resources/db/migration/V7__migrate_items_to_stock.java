@@ -46,6 +46,8 @@ public class V7__migrate_items_to_stock extends BaseJavaMigration {
             ProdKey key = new ProdKey(household, name);
             Timestamp deletedAt = (Timestamp) it.get("deleted_at");
             allDeleted.merge(key, deletedAt != null, (a, b) -> a && b);
+            // 그룹 전체가 소프트삭제일 때 product.deleted_at에 쓸 대표 시각.
+            // cascade 불변식엔 non-null이기만 하면 되므로 첫 값으로 충분(정확한 시각 불요).
             if (deletedAt != null) anyDeletedAt.putIfAbsent(key, deletedAt);
 
             if (!productIds.containsKey(key)) {
