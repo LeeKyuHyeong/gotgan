@@ -67,7 +67,7 @@ export default function HomePage() {
         ))}
       </div>
 
-      <Fab onClick={() => navigate('/items/new')} label="아이템 추가" />
+      <Fab onClick={() => navigate('/stock/new')} label="재고 추가" />
     </div>
     </PullToRefresh>
   )

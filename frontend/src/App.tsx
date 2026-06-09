@@ -18,7 +18,8 @@ import SettingsPage from './pages/SettingsPage'
 import LocationDetailPage from './pages/LocationDetailPage'
 import LocationManagePage from './pages/LocationManagePage'
 import LocationFormPage from './pages/LocationFormPage'
-import ItemFormPage from './pages/ItemFormPage'
+import StockAddPage from './pages/StockAddPage'
+import StockEditPage from './pages/StockEditPage'
 import AdminRequestsPage from './pages/AdminRequestsPage'
 import AdminCategoriesPage from './pages/AdminCategoriesPage'
 
@@ -89,8 +90,8 @@ export default function App() {
           <Route path="/locations/new" element={<LocationFormPage />} />
           <Route path="/locations/:id/edit" element={<LocationFormPage />} />
           <Route path="/locations/:id" element={<LocationDetailPage />} />
-          <Route path="/items/new" element={<ItemFormPage />} />
-          <Route path="/items/:id/edit" element={<ItemFormPage />} />
+          <Route path="/stock/new" element={<StockAddPage />} />
+          <Route path="/stock/:id/edit" element={<StockEditPage />} />
         </Route>
       </Route>
 
