@@ -82,7 +82,8 @@ product_group  (선택적 그룹: 맥주, 소주)
 
 ### 수량 증감 (POST /api/stock/{id}/adjust) · 편집 · 삭제
 - adjust(+/-): 결과 음수 거부. 결과가 **0이면 그 묶음 소프트삭제** + cascade 정리(아래).
-- PATCH: 수량/유통기한/메모/위치 변경. 위치·유통기한 변경 시 동일 묶음 합산 규칙 재적용 가능(구현 단순화를 위해 1차 구현은 단순 갱신, 합치기 충돌은 새 묶음 유지로 처리 — 계획 단계에서 확정).
+- PATCH: 수량/유통기한/메모/위치 변경 → **단순 갱신**(해당 묶음 필드만 변경). 위치·유통기한을 바꿔
+  다른 묶음과 같아져도 자동 합치기는 하지 않음(별도 묶음으로 공존). 합산은 "재고 추가" 경로에서만.
 - DELETE: 묶음 소프트삭제 + cascade 정리.
 
 ### Cascade 정리 (0재고 → 품목/그룹 삭제)
@@ -142,21 +143,24 @@ product_group  (선택적 그룹: 맥주, 소주)
 
 ## 마이그레이션 (Flyway V6)
 
-운영(gotgan.kyuhyeong.com) 실데이터 보존. 단일 마이그레이션으로:
+운영(gotgan.kyuhyeong.com) 실데이터 보존. **Java 기반 이관**으로 확정.
 
-1. `product_group`, `product`, `stock` 테이블 생성.
-2. 기존 `item`(활성·소프트삭제 포함)에서:
-   - `(household_id, name, COALESCE(unit,''), category_id)` 단위로 묶어 `product` 생성
-     (같은 묶음 → 하나의 product). `product_group_id`는 NULL(초기엔 그룹 없음).
-   - 각 item 행을 `stock`으로 이전: `product_id`(위에서 만든), `location_id`, `quantity`, `expiry_date`,
-     `memo`, `deleted_at`(원본 유지). `household_id` 비정규화 채움.
-3. `item_history.item_id`를 새 `stock.id`로 재매핑(원본 item→stock 1:1 매핑 테이블/조인 활용).
-   - 매핑 보장을 위해 마이그레이션 중 임시 컬럼(`item.migrated_stock_id`)을 두고 채운 뒤 history 업데이트.
-4. `item` → `item_legacy`로 rename(즉시 드롭하지 않음, 롤백 안전망). `item_history` FK는 stock으로 교체.
-5. 검증 쿼리: item 수 == stock 수, history 행 수 불변, 합계 수량 보존.
+- **V6 (SQL)**: `product_group`, `product`, `stock` 테이블 생성 + `item`에 임시 컬럼
+  `migrated_stock_id BIGINT NULL` 추가. (스키마 변경만)
+- **V7 (Flyway Java migration, `db/migration/V7__migrate_items_to_stock.java`)**: `JdbcTemplate`으로
+  데이터 이관:
+  1. 기존 `item`(활성·소프트삭제 포함)을 `(household_id, name, COALESCE(unit,''), category_id)` 단위로
+     묶어 `product` 생성(같은 묶음 → 하나의 product, `product_group_id`=NULL).
+  2. 각 item 행을 `stock`으로 이전: `product_id`, `location_id`, `quantity`, `expiry_date`, `memo`,
+     `deleted_at`(원본 유지), `household_id`. 생성된 `stock.id`를 `item.migrated_stock_id`에 기록.
+  3. `item_history.item_id` → `item.migrated_stock_id` 조인으로 `stock.id`로 재매핑.
+  4. 검증: `count(stock) == count(item)`, `count(item_history)` 불변, 가구별 합계 수량 보존.
+     불일치 시 예외로 마이그레이션 실패(롤백).
+- **V8 (SQL)**: `item_history`의 FK를 `item` → `stock`으로 교체(컬럼명 `item_id` → `stock_id`),
+  `item` → `item_legacy` rename(즉시 드롭 안 함, 롤백 안전망), `item.migrated_stock_id` 임시 컬럼은 보존.
 
-> 마이그레이션은 SQL만으로 복잡(그룹핑·매핑)하므로, 필요 시 V6는 스키마 생성 + Java `JdbcTemplate`
-> 기반 데이터 이관 단계(별도 `@Component` 1회 실행 또는 Flyway Java migration)로 분리할 수 있음. 계획 단계에서 확정.
+> Flyway Java migration은 `classpath:db/migration` 패키지(`db.migration`)에 `V7__...` 클래스로 두며
+> `BaseJavaMigration` 상속. 트랜잭션 경계·대량 처리는 가구 데이터 규모(가정용, 수백 행)상 단일 트랜잭션으로 충분.
 
 ## 테스트
 
@@ -174,6 +178,6 @@ product_group  (선택적 그룹: 맥주, 소주)
 
 ## 미해결 / 계획 단계에서 확정할 것
 
-1. 마이그레이션을 순수 SQL V6로 갈지, Java 기반 이관 단계로 분리할지.
-2. PATCH로 위치/유통기한 변경 시 동일 묶음 합치기를 할지(1차: 단순 갱신).
-3. inventory 응답 DTO 형태(중첩 트리 vs 평면 + groupId) 최종 확정.
+1. inventory 응답 DTO 형태(중첩 트리 vs 평면 + groupId) 최종 확정 — 계획에서 결정.
+
+(확정됨: 마이그레이션 = Java 기반 이관(V6 스키마 / V7 Java / V8 정리). PATCH = 단순 갱신, 자동 합치기 없음.)
