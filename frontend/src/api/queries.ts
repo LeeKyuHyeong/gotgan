@@ -538,7 +538,11 @@ export function useDeleteStock() {
     mutationFn: async (stockId: number) => {
       await api.delete(`/api/stock/${stockId}`)
     },
-    onSuccess: () => invalidateStockViews(qc),
+    onSuccess: (_, stockId) => {
+      invalidateStockViews(qc)
+      qc.invalidateQueries({ queryKey: ['stock', stockId] })
+      qc.invalidateQueries({ queryKey: ['stockHistory', stockId] })
+    },
   })
 }
 
@@ -559,6 +563,8 @@ function patchStockQty(qc: ReturnType<typeof useQueryClient>, stockId: number, d
     return {
       groups: old.groups.map((g) => {
         const products = g.products.map(patchProduct)
+        // 이 그룹에 해당 묶음이 없으면 동일 참조 유지(불필요한 리렌더 방지)
+        if (products.every((p, i) => p === g.products[i])) return g
         return { ...g, products, totalQuantity: products.reduce((s, p) => s + p.totalQuantity, 0) }
       }),
       ungrouped: old.ungrouped.map(patchProduct),
@@ -594,8 +600,10 @@ export function useAdjustStock() {
       qc.invalidateQueries({ queryKey: ['history'] })
       qc.invalidateQueries({ queryKey: ['stockHistory', vars.stockId] })
       qc.invalidateQueries({ queryKey: ['stock', vars.stockId] })
-      // 연타 끝났을 때만 합산/위치 뷰 재동기화(중간 깜빡임 방지)
-      if (qc.isMutating({ mutationKey: ['adjustStock'] }) === 0) {
+      // 연타 중 "마지막 settle"에서만 합산/위치 뷰 재동기화(중간 깜빡임 방지).
+      // 주의: onSettled는 이 뮤테이션이 'success'로 전이되기 전에 실행되므로 isMutating은
+      // 자기 자신을 포함(최소 1) → "내가 마지막"은 ===0 이 아니라 <=1 로 판정해야 한다(===0은 영원히 거짓).
+      if (qc.isMutating({ mutationKey: ['adjustStock'] }) <= 1) {
         qc.invalidateQueries({ queryKey: ['inventory'] })
         qc.invalidateQueries({ queryKey: ['locationStock'] })
         qc.invalidateQueries({ queryKey: ['home'] })

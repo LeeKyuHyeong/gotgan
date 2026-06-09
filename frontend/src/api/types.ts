@@ -291,6 +291,7 @@ export interface NewProductInput {
   groupName?: string | null
 }
 
+// productId 또는 newProduct 중 정확히 하나(폼·백엔드에서 런타임 검증; 폼의 Pick<> 구성 단순화를 위해 둘 다 optional 유지)
 export interface CreateStockRequest {
   productId?: number | null
   newProduct?: NewProductInput | null
