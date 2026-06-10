@@ -11,21 +11,24 @@ import type {
   CategoryRequestResponse,
   CategoryResponse,
   CreateCategoryRequestRequest,
-  CreateItemRequest,
   CreateLocationRequest,
+  CreateStockRequest,
   HouseholdDetailResponse,
   RequestStatus,
   HistoryResponse,
   HomeResponse,
   HouseholdResponse,
+  InventoryResponse,
   InviteResponse,
-  ItemResponse,
   LocationResponse,
   LoginResponse,
   MeResponse,
   PageResponse,
-  UpdateItemRequest,
+  ProductGroupResponse,
+  ProductPickerResponse,
+  StockResponse,
   UpdateLocationRequest,
+  UpdateStockRequest,
 } from './types'
 
 // ---------- 인증 / 온보딩 ----------
@@ -248,110 +251,6 @@ export function useDeleteLocation() {
   })
 }
 
-// ---------- 아이템 ----------
-export function useItems(params?: { locationId?: number; q?: string }) {
-  return useQuery({
-    queryKey: ['items', params ?? {}],
-    queryFn: async () =>
-      (await api.get<ItemResponse[]>('/api/items', { params })).data,
-  })
-}
-
-export function useItem(itemId: number) {
-  return useQuery({
-    queryKey: ['item', itemId],
-    queryFn: async () => (await api.get<ItemResponse>(`/api/items/${itemId}`)).data,
-    enabled: !!itemId,
-  })
-}
-
-function invalidateItemViews(qc: ReturnType<typeof useQueryClient>) {
-  qc.invalidateQueries({ queryKey: ['items'] })
-  qc.invalidateQueries({ queryKey: ['home'] })
-  qc.invalidateQueries({ queryKey: ['history'] })
-  qc.invalidateQueries({ queryKey: ['itemHistory'] })
-}
-
-/** 특정 아이템의 변동 이력(최신순). 편집 화면 인라인 표시용. */
-export function useItemHistory(itemId: number) {
-  return useQuery({
-    queryKey: ['itemHistory', itemId],
-    queryFn: async () =>
-      (await api.get<HistoryResponse[]>(`/api/items/${itemId}/history`)).data,
-    enabled: !!itemId,
-  })
-}
-
-export function useCreateItem() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (body: CreateItemRequest) =>
-      (await api.post<ItemResponse>('/api/items', body)).data,
-    onSuccess: () => invalidateItemViews(qc),
-  })
-}
-
-export function useUpdateItem(itemId: number) {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (body: UpdateItemRequest) =>
-      (await api.patch<ItemResponse>(`/api/items/${itemId}`, body)).data,
-    onSuccess: () => {
-      invalidateItemViews(qc)
-      qc.invalidateQueries({ queryKey: ['item', itemId] })
-    },
-  })
-}
-
-/** 캐시된 모든 아이템 목록/상세의 수량에 delta를 즉시 반영(낙관적 갱신·롤백 공용). */
-function patchCachedQuantity(qc: ReturnType<typeof useQueryClient>, itemId: number, delta: number) {
-  qc.setQueriesData<ItemResponse[]>({ queryKey: ['items'] }, (old) =>
-    old?.map((it) => (it.id === itemId ? { ...it, quantity: it.quantity + delta } : it)),
-  )
-  qc.setQueryData<ItemResponse>(['item', itemId], (old) =>
-    old ? { ...old, quantity: old.quantity + delta } : old,
-  )
-}
-
-export function useAdjustItem() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationKey: ['adjustItem'],
-    mutationFn: async ({ itemId, delta }: { itemId: number; delta: number }) =>
-      (await api.post<ItemResponse>(`/api/items/${itemId}/adjust`, { delta })).data,
-    // 낙관적: 클릭 즉시 화면 반영, 진행 중 refetch는 취소해 덮어쓰기 방지
-    onMutate: async ({ itemId, delta }) => {
-      await qc.cancelQueries({ queryKey: ['items'] })
-      await qc.cancelQueries({ queryKey: ['item', itemId] })
-      patchCachedQuantity(qc, itemId, delta)
-      return { itemId, delta }
-    },
-    onError: (_e, vars, ctx) => {
-      const c = ctx ?? vars
-      patchCachedQuantity(qc, c.itemId, -c.delta) // 실패 시 되돌리기
-    },
-    // 연타 중에는 마지막 증감만 서버값과 동기화 (중간값 깜빡임 방지). 이력은 항상 갱신.
-    onSettled: (_data, _err, vars) => {
-      qc.invalidateQueries({ queryKey: ['history'] })
-      qc.invalidateQueries({ queryKey: ['itemHistory', vars.itemId] })
-      qc.invalidateQueries({ queryKey: ['item', vars.itemId] })
-      if (qc.isMutating({ mutationKey: ['adjustItem'] }) === 0) {
-        qc.invalidateQueries({ queryKey: ['items'] })
-      }
-    },
-  })
-}
-
-export function useDeleteItem() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (itemId: number) => {
-      await api.delete(`/api/items/${itemId}`)
-    },
-    onSuccess: () => invalidateItemViews(qc),
-  })
-}
-
 // ---------- 어드민 (SYSTEM_ADMIN) ----------
 function invalidateAdminViews(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ['adminStats'] })
@@ -435,5 +334,173 @@ export function useHistory(page = 0) {
     queryKey: ['history', page],
     queryFn: async () =>
       (await api.get<PageResponse<HistoryResponse>>('/api/history', { params: { page } })).data,
+  })
+}
+
+// ---------- 재고(stock) / 전체보기(inventory) / 품목(product) ----------
+
+/** 전체 보기: 그룹/품목 합산 트리. */
+export function useInventory(q?: string) {
+  return useQuery({
+    queryKey: ['inventory', q ?? ''],
+    queryFn: async () =>
+      (await api.get<InventoryResponse>('/api/inventory', { params: q ? { q } : undefined })).data,
+  })
+}
+
+/** 위치 상세: 그 위치의 묶음 평면 목록. */
+export function useLocationStock(locationId: number) {
+  return useQuery({
+    queryKey: ['locationStock', locationId],
+    queryFn: async () =>
+      (await api.get<StockResponse[]>('/api/stock', { params: { locationId } })).data,
+    enabled: !!locationId,
+  })
+}
+
+/** 묶음 단건. */
+export function useStock(stockId: number) {
+  return useQuery({
+    queryKey: ['stock', stockId],
+    queryFn: async () => (await api.get<StockResponse>(`/api/stock/${stockId}`)).data,
+    enabled: !!stockId,
+  })
+}
+
+/** 묶음 변동 이력(편집 화면 인라인). */
+export function useStockHistory(stockId: number) {
+  return useQuery({
+    queryKey: ['stockHistory', stockId],
+    queryFn: async () =>
+      (await api.get<HistoryResponse[]>(`/api/stock/${stockId}/history`)).data,
+    enabled: !!stockId,
+  })
+}
+
+/** 재고 있는 품목 picker. */
+export function useProducts(q?: string) {
+  return useQuery({
+    queryKey: ['products', q ?? ''],
+    queryFn: async () =>
+      (await api.get<ProductPickerResponse[]>('/api/products', { params: q ? { q } : undefined })).data,
+  })
+}
+
+/** 그룹 picker. */
+export function useProductGroups() {
+  return useQuery({
+    queryKey: ['productGroups'],
+    queryFn: async () => (await api.get<ProductGroupResponse[]>('/api/product-groups')).data,
+  })
+}
+
+function invalidateStockViews(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['inventory'] })
+  qc.invalidateQueries({ queryKey: ['locationStock'] })
+  qc.invalidateQueries({ queryKey: ['products'] })
+  qc.invalidateQueries({ queryKey: ['productGroups'] })
+  qc.invalidateQueries({ queryKey: ['home'] })
+  qc.invalidateQueries({ queryKey: ['history'] })
+}
+
+export function useCreateStock() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: CreateStockRequest) =>
+      (await api.post<StockResponse>('/api/stock', body)).data,
+    onSuccess: () => invalidateStockViews(qc),
+  })
+}
+
+export function useUpdateStock(stockId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: UpdateStockRequest) =>
+      (await api.patch<StockResponse>(`/api/stock/${stockId}`, body)).data,
+    onSuccess: () => {
+      invalidateStockViews(qc)
+      qc.invalidateQueries({ queryKey: ['stock', stockId] })
+      qc.invalidateQueries({ queryKey: ['stockHistory', stockId] })
+    },
+  })
+}
+
+export function useDeleteStock() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (stockId: number) => {
+      await api.delete(`/api/stock/${stockId}`)
+    },
+    onSuccess: (_, stockId) => {
+      invalidateStockViews(qc)
+      qc.invalidateQueries({ queryKey: ['stock', stockId] })
+      qc.invalidateQueries({ queryKey: ['stockHistory', stockId] })
+    },
+  })
+}
+
+/** 캐시 즉시 반영: inventory 트리(묶음 찾아 수량+합계 갱신) + locationStock + stock 단건. */
+function patchStockQty(qc: ReturnType<typeof useQueryClient>, stockId: number, delta: number) {
+  qc.setQueriesData<InventoryResponse>({ queryKey: ['inventory'] }, (old) => {
+    if (!old) return old
+    const patchProduct = (p: InventoryResponse['ungrouped'][number]) => {
+      let changed = false
+      const batches = p.batches.map((b) => {
+        if (b.id !== stockId) return b
+        changed = true
+        return { ...b, quantity: b.quantity + delta }
+      })
+      if (!changed) return p
+      return { ...p, batches, totalQuantity: batches.reduce((s, b) => s + b.quantity, 0) }
+    }
+    return {
+      groups: old.groups.map((g) => {
+        const products = g.products.map(patchProduct)
+        // 이 그룹에 해당 묶음이 없으면 동일 참조 유지(불필요한 리렌더 방지)
+        if (products.every((p, i) => p === g.products[i])) return g
+        return { ...g, products, totalQuantity: products.reduce((s, p) => s + p.totalQuantity, 0) }
+      }),
+      ungrouped: old.ungrouped.map(patchProduct),
+    }
+  })
+  qc.setQueriesData<StockResponse[]>({ queryKey: ['locationStock'] }, (old) =>
+    old?.map((s) => (s.id === stockId ? { ...s, quantity: s.quantity + delta } : s)),
+  )
+  qc.setQueryData<StockResponse>(['stock', stockId], (old) =>
+    old ? { ...old, quantity: old.quantity + delta } : old,
+  )
+}
+
+/** 수량 +/- (낙관적). 결과 0이면 서버가 묶음 소프트삭제 → onSettled 재조회로 사라짐. */
+export function useAdjustStock() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationKey: ['adjustStock'],
+    mutationFn: async ({ stockId, delta }: { stockId: number; delta: number }) =>
+      (await api.post<StockResponse>(`/api/stock/${stockId}/adjust`, { delta })).data,
+    onMutate: async ({ stockId, delta }) => {
+      await qc.cancelQueries({ queryKey: ['inventory'] })
+      await qc.cancelQueries({ queryKey: ['locationStock'] })
+      await qc.cancelQueries({ queryKey: ['stock', stockId] })
+      patchStockQty(qc, stockId, delta)
+      return { stockId, delta }
+    },
+    onError: (_e, vars, ctx) => {
+      const c = ctx ?? vars
+      patchStockQty(qc, c.stockId, -c.delta)
+    },
+    onSettled: (_d, _e, vars) => {
+      qc.invalidateQueries({ queryKey: ['history'] })
+      qc.invalidateQueries({ queryKey: ['stockHistory', vars.stockId] })
+      qc.invalidateQueries({ queryKey: ['stock', vars.stockId] })
+      // 연타 중 "마지막 settle"에서만 합산/위치 뷰 재동기화(중간 깜빡임 방지).
+      // 주의: onSettled는 이 뮤테이션이 'success'로 전이되기 전에 실행되므로 isMutating은
+      // 자기 자신을 포함(최소 1) → "내가 마지막"은 ===0 이 아니라 <=1 로 판정해야 한다(===0은 영원히 거짓).
+      if (qc.isMutating({ mutationKey: ['adjustStock'] }) <= 1) {
+        qc.invalidateQueries({ queryKey: ['inventory'] })
+        qc.invalidateQueries({ queryKey: ['locationStock'] })
+        qc.invalidateQueries({ queryKey: ['home'] })
+      }
+    },
   })
 }

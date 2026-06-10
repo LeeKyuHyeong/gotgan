@@ -1,4 +1,4 @@
-package com.kh.stock.item;
+package com.kh.stock.stock;
 
 import com.kh.stock.item.dto.HistoryResponse;
 import com.kh.stock.item.dto.PageResponse;
@@ -13,14 +13,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/history")
 public class HistoryController {
 
-    private final ItemService itemService;
+    private final HistoryService historyService;
 
-    public HistoryController(ItemService itemService) {
-        this.itemService = itemService;
+    public HistoryController(HistoryService historyService) {
+        this.historyService = historyService;
     }
 
     @GetMapping
     public PageResponse<HistoryResponse> history(@PageableDefault(size = 20) Pageable pageable) {
-        return itemService.history(pageable);
+        return historyService.history(pageable);
     }
 }

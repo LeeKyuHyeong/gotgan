@@ -7,17 +7,15 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/** 재고 아이템 (가구 범위). 소프트 삭제(deletedAt). 곧만료(D-3)는 쿼리에서 계산. */
+/** 품목 = 재고 단위(맥주 캔). 같은 이름은 항상 하나(가구 내) → 위치 가로지른 합산 성립. 소프트삭제. */
 @Entity
-@Table(name = "item")
+@Table(name = "product")
 @Getter
 @Setter
 @NoArgsConstructor
-public class Item {
+public class Product {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,11 +25,12 @@ public class Item {
     @JoinColumn(name = "household_id", nullable = false)
     private Household household;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "location_id", nullable = false)
-    private StorageLocation location;
+    /** 선택적 그룹. NULL = 그룹 없음(단독 품목). 필드명은 HQL 예약어 'group' 회피로 productGroup. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_group_id")
+    private ProductGroup productGroup;
 
-    /** 전역 공통 분류. NULL = 미분류. */
+    /** 전역 공통 분류. NULL = 미분류. (기존 item.category 에서 품목 레벨로 이동) */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     private Category category;
@@ -39,19 +38,12 @@ public class Item {
     @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal quantity = BigDecimal.ONE;
-
     @Column(length = 20)
     private String unit;
 
-    @Column(name = "expiry_date")
-    private LocalDate expiryDate;
+    @Column(name = "sort_order", nullable = false)
+    private int sortOrder = 0;
 
-    @Column(length = 255)
-    private String memo;
-
-    /** 소프트 삭제 시각. NULL = 활성. */
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 

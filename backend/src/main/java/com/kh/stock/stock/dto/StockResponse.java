@@ -1,19 +1,20 @@
-package com.kh.stock.item.dto;
+package com.kh.stock.stock.dto;
 
 import com.kh.stock.domain.Category;
-import com.kh.stock.domain.Item;
+import com.kh.stock.domain.Stock;
 import com.kh.stock.domain.StorageLocation;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 
-/** 아이템 응답. dDay=오늘 기준 남은 일수(만료 없으면 null, 지났으면 음수), expiringSoon=D-3 이내. */
-public record ItemResponse(
+/** 재고 묶음 응답(위치 상세/단건). dDay=남은 일수(만료없음 null), expiringSoon=D-3 이내. */
+public record StockResponse(
         Long id,
-        String name,
-        BigDecimal quantity,
+        Long productId,
+        String productName,
         String unit,
+        BigDecimal quantity,
         LocalDate expiryDate,
         String memo,
         Long locationId,
@@ -26,20 +27,20 @@ public record ItemResponse(
         Long dDay,
         boolean expiringSoon
 ) {
-    public static ItemResponse from(Item i, LocalDate today) {
-        StorageLocation loc = i.getLocation();
-        Category cat = i.getCategory();
-        Long dDay = i.getExpiryDate() == null ? null
-                : ChronoUnit.DAYS.between(today, i.getExpiryDate());
+    public static StockResponse from(Stock s, LocalDate today) {
+        var p = s.getProduct();
+        StorageLocation loc = s.getLocation();
+        Category cat = p.getCategory();
+        Long dDay = s.getExpiryDate() == null ? null : ChronoUnit.DAYS.between(today, s.getExpiryDate());
         boolean soon = dDay != null && dDay >= 0 && dDay <= 3;
-        return new ItemResponse(
-                i.getId(), i.getName(), i.getQuantity(), i.getUnit(), i.getExpiryDate(), i.getMemo(),
+        return new StockResponse(
+                s.getId(), p.getId(), p.getName(), p.getUnit(), s.getQuantity(),
+                s.getExpiryDate(), s.getMemo(),
                 loc.getId(), loc.getName(), loc.getEmoji(),
                 cat == null ? null : cat.getId(),
                 cat == null ? null : cat.getName(),
                 cat == null ? null : cat.getEmoji(),
                 cat == null ? null : cat.getColor(),
-                dDay, soon
-        );
+                dDay, soon);
     }
 }

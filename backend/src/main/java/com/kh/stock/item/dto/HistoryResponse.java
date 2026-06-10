@@ -20,7 +20,7 @@ public record HistoryResponse(
     public static HistoryResponse from(ItemHistory h) {
         return new HistoryResponse(
                 h.getId(),
-                h.getItem().getId(),
+                h.getStock().getId(),
                 h.getItemNameSnapshot(),
                 h.getAction(),
                 h.getDelta(),

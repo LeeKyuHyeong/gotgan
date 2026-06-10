@@ -26,7 +26,9 @@ public class HouseholdService {
     private final MembershipRepository membershipRepository;
     private final StorageLocationRepository locationRepository;
     private final AppUserRepository userRepository;
-    private final ItemRepository itemRepository;
+    private final StockRepository stockRepository;
+    private final ProductRepository productRepository;
+    private final ProductGroupRepository groupRepository;
     private final ItemHistoryRepository itemHistoryRepository;
     private final CategoryRequestRepository categoryRequestRepository;
     private final InviteCodeGenerator inviteCodeGenerator;
@@ -35,7 +37,9 @@ public class HouseholdService {
                             MembershipRepository membershipRepository,
                             StorageLocationRepository locationRepository,
                             AppUserRepository userRepository,
-                            ItemRepository itemRepository,
+                            StockRepository stockRepository,
+                            ProductRepository productRepository,
+                            ProductGroupRepository groupRepository,
                             ItemHistoryRepository itemHistoryRepository,
                             CategoryRequestRepository categoryRequestRepository,
                             InviteCodeGenerator inviteCodeGenerator) {
@@ -43,7 +47,9 @@ public class HouseholdService {
         this.membershipRepository = membershipRepository;
         this.locationRepository = locationRepository;
         this.userRepository = userRepository;
-        this.itemRepository = itemRepository;
+        this.stockRepository = stockRepository;
+        this.productRepository = productRepository;
+        this.groupRepository = groupRepository;
         this.itemHistoryRepository = itemHistoryRepository;
         this.categoryRequestRepository = categoryRequestRepository;
         this.inviteCodeGenerator = inviteCodeGenerator;
@@ -219,16 +225,18 @@ public class HouseholdService {
         membershipRepository.delete(my);
     }
 
-    /** 가구 삭제(가족장). 아이템·이력·위치·분류요청·멤버십까지 정리. 되돌릴 수 없음. */
+    /** 가구 삭제(가족장). 재고·품목·그룹·이력·위치·분류요청·멤버십까지 정리. 되돌릴 수 없음. */
     @Transactional
     public void delete(Long userId, Long householdId) {
         Household h = requireOwner(userId, householdId);
-        itemHistoryRepository.deleteByHouseholdId(householdId);
-        itemRepository.deleteByHousehold_Id(householdId);
+        itemHistoryRepository.deleteByHouseholdId(householdId);   // FK → stock
+        stockRepository.deleteByHousehold_Id(householdId);        // FK → product
+        productRepository.deleteByHousehold_Id(householdId);      // FK → product_group
+        groupRepository.deleteByHousehold_Id(householdId);
         locationRepository.deleteByHouseholdId(householdId);
         categoryRequestRepository.deleteByHousehold_Id(householdId);
         membershipRepository.deleteByHouseholdId(householdId);
-        householdRepository.delete(h);
+        householdRepository.delete(h);  // item_legacy 는 DB FK CASCADE 로 함께 정리
     }
 
     private Membership requireMember(Long userId, Long householdId) {

@@ -105,24 +105,6 @@ export interface HomeResponse {
   locations: LocationCardResponse[]
 }
 
-export interface ItemResponse {
-  id: number
-  name: string
-  quantity: number
-  unit: string | null
-  expiryDate: string | null // ISO date 'yyyy-MM-dd'
-  memo: string | null
-  locationId: number
-  locationName: string
-  locationEmoji: string | null
-  categoryId: number | null
-  categoryName: string | null
-  categoryEmoji: string | null
-  categoryColor: string | null
-  dDay: number | null
-  expiringSoon: boolean
-}
-
 export interface HistoryResponse {
   id: number
   itemId: number
@@ -208,13 +190,91 @@ export interface AdminUpdateCategoryRequest {
   status?: CategoryStatus
 }
 
-export interface CreateItemRequest {
-  name: string
-  locationId: number
-  categoryId?: number | null
+// ===== 재고 정규화 (stock/product/inventory) =====
+
+export interface StockResponse {
+  id: number
+  productId: number
+  productName: string
+  unit: string | null
   quantity: number
+  expiryDate: string | null // 'yyyy-MM-dd'
+  memo: string | null
+  locationId: number
+  locationName: string
+  locationEmoji: string | null
+  categoryId: number | null
+  categoryName: string | null
+  categoryEmoji: string | null
+  categoryColor: string | null
+  dDay: number | null
+  expiringSoon: boolean
+}
+
+export interface InventoryProduct {
+  productId: number
+  name: string
+  unit: string | null
+  categoryId: number | null
+  categoryName: string | null
+  categoryEmoji: string | null
+  categoryColor: string | null
+  totalQuantity: number
+  minDDay: number | null
+  expiringSoon: boolean
+  batches: StockResponse[]
+}
+
+export interface InventoryGroup {
+  groupId: number
+  groupName: string
+  totalQuantity: number
+  minDDay: number | null
+  expiringSoon: boolean
+  products: InventoryProduct[]
+}
+
+export interface InventoryResponse {
+  groups: InventoryGroup[]
+  ungrouped: InventoryProduct[]
+}
+
+export interface ProductPickerResponse {
+  id: number
+  name: string
+  unit: string | null
+  groupId: number | null
+  groupName: string | null
+  categoryId: number | null
+  categoryName: string | null
+}
+
+export interface ProductGroupResponse {
+  id: number
+  name: string
+}
+
+export interface NewProductInput {
+  name: string
   unit?: string | null
+  categoryId?: number | null
+  groupId?: number | null
+  groupName?: string | null
+}
+
+// productId 또는 newProduct 중 정확히 하나(폼·백엔드에서 런타임 검증; 폼의 Pick<> 구성 단순화를 위해 둘 다 optional 유지)
+export interface CreateStockRequest {
+  productId?: number | null
+  newProduct?: NewProductInput | null
+  locationId: number
+  quantity: number
   expiryDate?: string | null
   memo?: string | null
 }
-export type UpdateItemRequest = CreateItemRequest
+
+export interface UpdateStockRequest {
+  quantity: number
+  expiryDate?: string | null
+  memo?: string | null
+  locationId: number
+}
