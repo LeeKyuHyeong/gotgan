@@ -261,7 +261,7 @@ export default function StockAddPage() {
         <ErrorText message={err} />
       </div>
 
-      <div className="px-5 pb-8 pt-2">
+      <div className="sticky bottom-0 border-t border-line bg-bg/90 px-5 pb-8 pt-3 backdrop-blur">
         <Button onClick={submit} disabled={create.isPending}>
           추가하기
         </Button>

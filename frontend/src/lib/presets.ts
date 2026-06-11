@@ -228,7 +228,7 @@ export const ITEM_PRESETS: ItemPreset[] = [
 export function suggestPresets(term: string, limit = 8): ItemPreset[] {
   const t = term.trim()
   if (!t) return []
-  return ITEM_PRESETS.filter((p) => p.name.includes(t) && p.name !== t).slice(0, limit)
+  return ITEM_PRESETS.filter((p) => p.name.includes(t)).slice(0, limit)
 }
 
 /** 분류별 그룹 (카탈로그 = 시드 sort_order 순서 유지) */
