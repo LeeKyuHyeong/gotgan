@@ -3,6 +3,8 @@ import { isLoggedIn, getHouseholdId, setHouseholdId } from './lib/auth'
 import { useMe } from './api/queries'
 import { LoadErrorScreen, LoadingScreen } from './components/ui'
 import { BottomTabs } from './components/BottomTabs'
+import InAppBrowserNotice from './components/InAppBrowserNotice'
+import InstallHint from './components/InstallHint'
 import LoginPage from './pages/LoginPage'
 import KakaoCallbackPage from './pages/KakaoCallbackPage'
 import OnboardingPage from './pages/OnboardingPage'
@@ -63,7 +65,11 @@ function MainLayout() {
 
 export default function App() {
   return (
-    <Routes>
+    <>
+      {/* 인앱 브라우저 탈출 안내 + 설치 권유 — 라우트와 무관하게 전역 노출 */}
+      <InAppBrowserNotice />
+      <InstallHint />
+      <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/oauth/kakao/callback" element={<KakaoCallbackPage />} />
       {/* 초대 공유 링크 진입점 — 비로그인도 접근 가능해야 해서 RequireAuth 밖 */}
@@ -96,6 +102,7 @@ export default function App() {
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+      </Routes>
+    </>
   )
 }
