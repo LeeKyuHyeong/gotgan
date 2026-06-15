@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class HouseholdService {
@@ -110,16 +111,24 @@ public class HouseholdService {
                 household.getInviteCode(), 1, household.getMaxMembers());
     }
 
-    /** 초대코드로 합류 (인원 상한 체크). */
+    /** 초대코드로 합류 (인원 상한 체크). 이미 구성원이면 멱등 — 에러 대신 그 가구를 돌려준다. */
     @Transactional
     public HouseholdResponse join(Long userId, JoinHouseholdRequest req) {
         Household household = householdRepository.findByInviteCode(req.inviteCode().trim())
                 .orElseThrow(() -> ApiException.notFound("초대코드가 올바르지 않습니다."));
 
-        if (membershipRepository.existsByUserIdAndHouseholdId(userId, household.getId())) {
-            throw ApiException.conflict("이미 이 가구의 구성원입니다.");
-        }
         long count = membershipRepository.countByHouseholdId(household.getId());
+
+        // 이미 구성원이면 멱등 처리 — conflict 로 막지 않고 그 가구 정보를 그대로 돌려준다.
+        // (초대 랜딩이 로그인 사용자를 항상 합류 폼으로 보내므로, 한 번 합류한 사람·가족장 본인이
+        //  초대링크/코드를 다시 쓸 때 "이미 구성원" 에러에 갇혀 메인으로 못 가던 버그를 막는다.)
+        Optional<Membership> existing = membershipRepository.findByUserIdAndHouseholdId(userId, household.getId());
+        if (existing.isPresent()) {
+            return new HouseholdResponse(
+                    household.getId(), household.getName(), existing.get().getRole(),
+                    null, (int) count, household.getMaxMembers());
+        }
+
         if (count >= household.getMaxMembers()) {
             throw ApiException.conflict("가구 인원이 가득 찼습니다.");
         }
