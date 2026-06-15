@@ -1,5 +1,6 @@
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { isLoggedIn, getHouseholdId, setHouseholdId } from './lib/auth'
+import { reconcileHouseholdId } from './lib/household'
 import { useMe } from './api/queries'
 import { LoadErrorScreen, LoadingScreen } from './components/ui'
 import { BottomTabs } from './components/BottomTabs'
@@ -45,10 +46,12 @@ function RequireHousehold() {
   if (isError || !me) return <LoadErrorScreen onRetry={() => refetch()} />
   if (me.needsOnboarding) return <Navigate to="/onboarding" replace />
 
-  // 현재 가구가 안 잡혀있으면 첫 가구로 설정
-  if (getHouseholdId() == null && me.households.length > 0) {
-    setHouseholdId(me.households[0].householdId)
-  }
+  // 현재 가구가 비었거나 더 이상 소속이 아니면(킥/탈퇴/삭제) 첫 가구로 교정
+  const next = reconcileHouseholdId(
+    getHouseholdId(),
+    me.households.map((h) => h.householdId),
+  )
+  if (next != null) setHouseholdId(next)
   return <MainLayout />
 }
 

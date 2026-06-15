@@ -114,7 +114,10 @@ public class HouseholdService {
     /** 초대코드로 합류 (인원 상한 체크). 이미 구성원이면 멱등 — 에러 대신 그 가구를 돌려준다. */
     @Transactional
     public HouseholdResponse join(Long userId, JoinHouseholdRequest req) {
-        Household household = householdRepository.findByInviteCode(req.inviteCode().trim())
+        // (A6) 코드 정규화 — 프런트가 항상 대문자화하지만 직접 API 호출/소문자 입력도 받아들인다.
+        // (D2) 가구 행에 쓰기 락을 걸어 동시 합류를 직렬화(정원 초과 방지).
+        String code = req.inviteCode().trim().toUpperCase();
+        Household household = householdRepository.findByInviteCodeForUpdate(code)
                 .orElseThrow(() -> ApiException.notFound("초대코드가 올바르지 않습니다."));
 
         long count = membershipRepository.countByHouseholdId(household.getId());
