@@ -5,6 +5,8 @@ services:
     image: mariadb:11
     container_name: gotgan-db
     restart: unless-stopped
+    # 공유 호스트(7개 서비스) 보호 — DB 메모리 상한.
+    mem_limit: 512m
     environment:
       TZ: Asia/Seoul  # 미설정 시 UTC — 로그·NOW() 가 KST-9h 로 어긋남
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
@@ -30,6 +32,9 @@ services:
       context: ./backend
     container_name: gotgan-app
     restart: unless-stopped
+    # 메모리 상한 — Dockerfile 의 -XX:MaxRAMPercentage=75 가 이 한도(768m) 기준으로 힙(~576m)을 잡게 함.
+    # (상한이 없으면 호스트 전체 메모리의 75% 를 노려 타 서비스 OOM 위험.)
+    mem_limit: 768m
     depends_on:
       gotgan-db:
         condition: service_healthy

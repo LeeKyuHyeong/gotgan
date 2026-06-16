@@ -34,6 +34,10 @@ public class StorageLocation {
     @Column(name = "sort_order", nullable = false)
     private int sortOrder = 0;
 
+    /** 소프트삭제 시각. NULL=활성. (소프트삭제된 재고가 FK 로 위치를 붙들어 하드삭제가 막히는 문제 회피) */
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

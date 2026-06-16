@@ -89,6 +89,8 @@ export default function StockEditPage() {
               className={inputCls}
               type="number"
               inputMode="decimal"
+              min="0"
+              step="any"
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
             />

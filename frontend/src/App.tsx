@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { isLoggedIn, getHouseholdId, setHouseholdId } from './lib/auth'
 import { reconcileHouseholdId } from './lib/household'
@@ -6,25 +7,26 @@ import { LoadErrorScreen, LoadingScreen } from './components/ui'
 import { BottomTabs } from './components/BottomTabs'
 import InAppBrowserNotice from './components/InAppBrowserNotice'
 import InstallHint from './components/InstallHint'
+// 첫 화면(로그인/콜백)만 즉시 로드. 나머지는 lazy 로 분할 — 로그인 시 admin·재고추가(프리셋 198개)까지 안 받게.
 import LoginPage from './pages/LoginPage'
 import KakaoCallbackPage from './pages/KakaoCallbackPage'
-import OnboardingPage from './pages/OnboardingPage'
-import InviteLandingPage from './pages/InviteLandingPage'
-import CreateHouseholdPage from './pages/CreateHouseholdPage'
-import JoinHouseholdPage from './pages/JoinHouseholdPage'
-import InvitePage from './pages/InvitePage'
-import HouseholdManagePage from './pages/HouseholdManagePage'
-import HomePage from './pages/HomePage'
-import AllItemsPage from './pages/AllItemsPage'
-import HistoryPage from './pages/HistoryPage'
-import SettingsPage from './pages/SettingsPage'
-import LocationDetailPage from './pages/LocationDetailPage'
-import LocationManagePage from './pages/LocationManagePage'
-import LocationFormPage from './pages/LocationFormPage'
-import StockAddPage from './pages/StockAddPage'
-import StockEditPage from './pages/StockEditPage'
-import AdminRequestsPage from './pages/AdminRequestsPage'
-import AdminCategoriesPage from './pages/AdminCategoriesPage'
+const OnboardingPage = lazy(() => import('./pages/OnboardingPage'))
+const InviteLandingPage = lazy(() => import('./pages/InviteLandingPage'))
+const CreateHouseholdPage = lazy(() => import('./pages/CreateHouseholdPage'))
+const JoinHouseholdPage = lazy(() => import('./pages/JoinHouseholdPage'))
+const InvitePage = lazy(() => import('./pages/InvitePage'))
+const HouseholdManagePage = lazy(() => import('./pages/HouseholdManagePage'))
+const HomePage = lazy(() => import('./pages/HomePage'))
+const AllItemsPage = lazy(() => import('./pages/AllItemsPage'))
+const HistoryPage = lazy(() => import('./pages/HistoryPage'))
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const LocationDetailPage = lazy(() => import('./pages/LocationDetailPage'))
+const LocationManagePage = lazy(() => import('./pages/LocationManagePage'))
+const LocationFormPage = lazy(() => import('./pages/LocationFormPage'))
+const StockAddPage = lazy(() => import('./pages/StockAddPage'))
+const StockEditPage = lazy(() => import('./pages/StockEditPage'))
+const AdminRequestsPage = lazy(() => import('./pages/AdminRequestsPage'))
+const AdminCategoriesPage = lazy(() => import('./pages/AdminCategoriesPage'))
 
 function RequireAuth() {
   if (!isLoggedIn()) return <Navigate to="/login" replace />
@@ -72,6 +74,7 @@ export default function App() {
       {/* 인앱 브라우저 탈출 안내 + 설치 권유 — 라우트와 무관하게 전역 노출 */}
       <InAppBrowserNotice />
       <InstallHint />
+      <Suspense fallback={<LoadingScreen />}>
       <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/oauth/kakao/callback" element={<KakaoCallbackPage />} />
@@ -106,6 +109,7 @@ export default function App() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
     </>
   )
 }

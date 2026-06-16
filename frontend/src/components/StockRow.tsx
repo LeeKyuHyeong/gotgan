@@ -43,7 +43,7 @@ export function StockRow({ stock, showLocation }: { stock: StockResponse; showLo
         <button
           onClick={() => adjust.mutate({ stockId: stock.id, delta: -1 })}
           disabled={stock.quantity <= 0}
-          className="h-7 w-7 rounded-full border border-line text-ink-soft disabled:opacity-40"
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-line text-lg text-ink-soft disabled:opacity-40"
           aria-label="감소"
         >
           −
@@ -54,7 +54,7 @@ export function StockRow({ stock, showLocation }: { stock: StockResponse; showLo
         </span>
         <button
           onClick={() => adjust.mutate({ stockId: stock.id, delta: 1 })}
-          className="h-7 w-7 rounded-full border border-line text-ink-soft active:bg-line/40"
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-line text-lg text-ink-soft active:bg-line/40"
           aria-label="증가"
         >
           +

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useCategories, useCategoryRequests, useCreateCategoryRequest } from '../api/queries'
 import { errorMessage } from '../api/client'
 import { CATEGORY_EMOJIS as EMOJIS } from '../lib/emojis'
+import { useModalDialog } from '../lib/useModalDialog'
 import { Button, ErrorText, Pill } from './ui'
 
 interface Props {
@@ -22,6 +23,7 @@ export default function CategoryPicker({ value, onChange, onClose }: Props) {
   const [reqEmoji, setReqEmoji] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
+  const dialogRef = useModalDialog<HTMLDivElement>(onClose)
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase()
@@ -69,7 +71,12 @@ export default function CategoryPicker({ value, onChange, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex justify-center bg-black/30" onClick={onClose}>
       <div
-        className="flex max-h-screen w-full max-w-[480px] flex-col bg-bg"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="분류 선택"
+        tabIndex={-1}
+        className="flex max-h-screen w-full max-w-[480px] flex-col bg-bg outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="sticky top-0 flex items-center gap-3 bg-bg/90 px-4 pt-4 pb-2 backdrop-blur">

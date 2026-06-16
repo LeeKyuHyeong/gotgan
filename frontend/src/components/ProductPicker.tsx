@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useProducts } from '../api/queries'
 import type { ProductPickerResponse } from '../api/types'
+import { useModalDialog } from '../lib/useModalDialog'
 
 interface Props {
   onPick: (product: ProductPickerResponse) => void
@@ -11,11 +12,17 @@ interface Props {
 export default function ProductPicker({ onPick, onClose }: Props) {
   const [q, setQ] = useState('')
   const { data: products } = useProducts(q.trim() || undefined)
+  const dialogRef = useModalDialog<HTMLDivElement>(onClose)
 
   return (
     <div className="fixed inset-0 z-50 flex justify-center bg-black/30" onClick={onClose}>
       <div
-        className="flex max-h-screen w-full max-w-[480px] flex-col bg-bg"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="품목 선택"
+        tabIndex={-1}
+        className="flex max-h-screen w-full max-w-[480px] flex-col bg-bg outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="sticky top-0 flex items-center gap-3 bg-bg/90 px-4 pt-4 pb-2 backdrop-blur">

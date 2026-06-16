@@ -1,9 +1,13 @@
 package com.kh.stock.config;
 
+import com.kh.stock.repository.AppUserRepository;
 import com.kh.stock.security.JwtAuthenticationFilter;
 import com.kh.stock.security.JwtTokenProvider;
+import jakarta.annotation.PostConstruct;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -21,13 +25,29 @@ import java.util.List;
 public class SecurityConfig {
 
     private final AppProperties props;
+    private final Environment env;
 
-    public SecurityConfig(AppProperties props) {
+    public SecurityConfig(AppProperties props, Environment env) {
         this.props = props;
+        this.env = env;
+    }
+
+    /** 운영(prod)에서 CORS 허용 origin 이 비었거나 localhost 면 즉시 기동 실패 — 잘못된 배포로 인증요청이 새지 않게. */
+    @PostConstruct
+    void validateCorsOrigins() {
+        if (!env.matchesProfiles("prod")) return;
+        var origins = props.cors().allowedOrigins();
+        boolean invalid = origins == null || origins.isEmpty()
+                || origins.stream().anyMatch(o -> o == null || o.contains("localhost"));
+        if (invalid) {
+            throw new IllegalStateException(
+                    "운영 프로파일에는 CORS_ORIGINS 를 실제 도메인으로 주입해야 합니다 (현재: " + origins + ")");
+        }
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtTokenProvider tokenProvider) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtTokenProvider tokenProvider,
+                                                   AppUserRepository userRepository) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -45,7 +65,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasRole("SYSTEM_ADMIN")
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(new JwtAuthenticationFilter(tokenProvider),
+                .addFilterBefore(new JwtAuthenticationFilter(tokenProvider, userRepository),
                         UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
@@ -55,7 +75,8 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(props.cors().allowedOrigins());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
+        // credentials 동반 CORS 라 와일드카드 대신 실제 사용하는 헤더만 명시.
+        config.setAllowedHeaders(List.of(HttpHeaders.AUTHORIZATION, HttpHeaders.CONTENT_TYPE, "X-Household-Id"));
         config.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

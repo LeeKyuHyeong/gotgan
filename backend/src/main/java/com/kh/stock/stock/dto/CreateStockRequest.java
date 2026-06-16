@@ -2,6 +2,7 @@ package com.kh.stock.stock.dto;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -13,7 +14,7 @@ public record CreateStockRequest(
         Long productId,
         @Valid NewProductInput newProduct,
         @NotNull Long locationId,
-        @NotNull @DecimalMin(value = "0", inclusive = false) BigDecimal quantity,
+        @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 8, fraction = 2) BigDecimal quantity,
         LocalDate expiryDate,
         @Size(max = 255) String memo
 ) {}

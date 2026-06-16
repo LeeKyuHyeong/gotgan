@@ -169,6 +169,7 @@ export default function SettingsPage() {
               onClick={togglePush}
               disabled={pushBusy}
               aria-checked={pushOn}
+              aria-label="유통기한 임박 알림"
               role="switch"
               className={`relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-40 ${pushOn ? 'bg-brand' : 'bg-line'}`}
             >

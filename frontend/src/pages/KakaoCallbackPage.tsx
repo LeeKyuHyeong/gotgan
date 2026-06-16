@@ -44,7 +44,8 @@ export default function KakaoCallbackPage() {
         if (getPendingInviteCode()) {
           // 초대 링크로 들어온 경우: 온보딩/홈 대신 합류 화면으로 직행(코드 자동 입력)
           window.location.replace('/onboarding/join')
-        } else if (data.needsOnboarding) {
+        } else if (data.needsOnboarding || data.households.length === 0) {
+          // 빈 households 면 [0] 접근이 흰 화면을 부르므로 방어 — 온보딩으로
           window.location.replace('/onboarding')
         } else {
           setHouseholdId(data.households[0].householdId)

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useCategories } from '../api/queries'
 import { groupPresets, ITEM_PRESETS, type ItemPreset } from '../lib/presets'
+import { useModalDialog } from '../lib/useModalDialog'
 
 interface Props {
   onPick: (preset: ItemPreset) => void
@@ -11,6 +12,7 @@ interface Props {
 export default function PresetPicker({ onPick, onClose }: Props) {
   const { data: categories } = useCategories()
   const [q, setQ] = useState('')
+  const dialogRef = useModalDialog<HTMLDivElement>(onClose)
 
   const groups = useMemo(() => {
     const term = q.trim().toLowerCase()
@@ -33,7 +35,12 @@ export default function PresetPicker({ onPick, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex justify-center bg-black/30" onClick={onClose}>
       <div
-        className="flex max-h-screen w-full max-w-[480px] flex-col bg-bg"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="자주 쓰는 품목"
+        tabIndex={-1}
+        className="flex max-h-screen w-full max-w-[480px] flex-col bg-bg outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="sticky top-0 flex items-center gap-3 bg-bg/90 px-4 pt-4 pb-2 backdrop-blur">

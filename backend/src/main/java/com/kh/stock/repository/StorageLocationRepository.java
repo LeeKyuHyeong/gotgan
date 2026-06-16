@@ -7,9 +7,9 @@ import java.util.List;
 
 public interface StorageLocationRepository extends JpaRepository<StorageLocation, Long> {
 
-    /** 홈 화면: 가구의 위치 목록(정렬순). */
-    List<StorageLocation> findByHouseholdIdOrderBySortOrderAsc(Long householdId);
+    /** 홈/목록: 가구의 활성 위치(정렬순). 소프트삭제된 위치 제외. */
+    List<StorageLocation> findByHouseholdIdAndDeletedAtIsNullOrderBySortOrderAsc(Long householdId);
 
-    /** 가구 삭제 시 정리. */
+    /** 가구 삭제 시 정리(소프트삭제 포함 전부 하드삭제 — 가구 자체가 사라지므로). */
     void deleteByHouseholdId(Long householdId);
 }

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +43,7 @@ public class LocationService {
     @Transactional(readOnly = true)
     public HomeResponse getHome() {
         Long hid = TenantContext.require();
-        List<StorageLocation> locations = locationRepository.findByHouseholdIdOrderBySortOrderAsc(hid);
+        List<StorageLocation> locations = locationRepository.findByHouseholdIdAndDeletedAtIsNullOrderBySortOrderAsc(hid);
         List<Stock> items = stockRepository.findActiveByHousehold(hid);
 
         LocalDate today = LocalDate.now(KST);
@@ -74,7 +75,7 @@ public class LocationService {
     @Transactional(readOnly = true)
     public List<LocationResponse> list() {
         Long hid = TenantContext.require();
-        return locationRepository.findByHouseholdIdOrderBySortOrderAsc(hid).stream()
+        return locationRepository.findByHouseholdIdAndDeletedAtIsNullOrderBySortOrderAsc(hid).stream()
                 .map(LocationResponse::from)
                 .toList();
     }
@@ -82,7 +83,7 @@ public class LocationService {
     @Transactional
     public LocationResponse create(CreateLocationRequest req) {
         Long hid = TenantContext.require();
-        int nextOrder = locationRepository.findByHouseholdIdOrderBySortOrderAsc(hid).stream()
+        int nextOrder = locationRepository.findByHouseholdIdAndDeletedAtIsNullOrderBySortOrderAsc(hid).stream()
                 .mapToInt(StorageLocation::getSortOrder).max().orElse(0) + 1;
 
         StorageLocation l = new StorageLocation();
@@ -111,15 +112,16 @@ public class LocationService {
         if (stockRepository.existsByLocation_IdAndDeletedAtIsNull(l.getId())) {
             throw ApiException.conflict("이 위치에 재고가 남아있어 삭제할 수 없습니다. 먼저 재고를 옮기거나 삭제하세요.");
         }
-        locationRepository.delete(l);
+        // 하드삭제 대신 소프트삭제 — 소프트삭제된 재고가 RESTRICT FK 로 이 위치를 붙들고 있어도 안전.
+        l.setDeletedAt(LocalDateTime.now());
     }
 
-    /** 현재 가구 소속인지 검증하며 위치 로드. */
+    /** 현재 가구 소속의 활성 위치인지 검증하며 로드. */
     private StorageLocation requireOwned(Long locationId) {
         Long hid = TenantContext.require();
         StorageLocation l = locationRepository.findById(locationId)
                 .orElseThrow(() -> ApiException.notFound("위치를 찾을 수 없습니다."));
-        if (!l.getHousehold().getId().equals(hid)) {
+        if (!l.getHousehold().getId().equals(hid) || l.getDeletedAt() != null) {
             throw ApiException.notFound("위치를 찾을 수 없습니다.");
         }
         return l;

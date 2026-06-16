@@ -35,17 +35,18 @@ public class JwtTokenProvider {
                 .compact();
     }
 
-    /** 유효하면 AuthUser, 아니면 null. */
-    public AuthUser parse(String token) {
+    /**
+     * 서명·만료가 유효하면 userId, 아니면 null.
+     * role 은 토큰 claim 이 아니라 필터가 DB 에서 live 로 해석한다(부여/강등 즉시 반영).
+     */
+    public Long parseUserId(String token) {
         try {
             Claims claims = Jwts.parser()
                     .verifyWith(key)
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
-            Long userId = Long.valueOf(claims.getSubject());
-            UserRole role = UserRole.valueOf(claims.get("role", String.class));
-            return new AuthUser(userId, role);
+            return Long.valueOf(claims.getSubject());
         } catch (Exception e) {
             return null;
         }

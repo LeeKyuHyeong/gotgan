@@ -46,7 +46,8 @@ export default function LoginPage() {
     clearSilentLoginSkip() // 수동 로그인 성공 → 다음부터 자동 로그인 재개
     if (getPendingInviteCode()) {
       navigate('/onboarding/join', { replace: true }) // 초대 링크 경유 — 합류 화면으로 직행
-    } else if (data.needsOnboarding) {
+    } else if (data.needsOnboarding || data.households.length === 0) {
+      // needsOnboarding 과 households 비어있음은 같은 상태여야 하지만, 빈 배열이면 [0] 접근이 흰 화면을 부르므로 방어
       navigate('/onboarding', { replace: true })
     } else {
       setHouseholdId(data.households[0].householdId)

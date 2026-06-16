@@ -240,6 +240,8 @@ export default function StockAddPage() {
               className={inputCls}
               type="number"
               inputMode="decimal"
+              min="0"
+              step="any"
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
             />
@@ -249,6 +251,7 @@ export default function StockAddPage() {
             <input
               className={inputCls}
               type="date"
+              min={new Date().toLocaleDateString('sv-SE')}
               value={expiryDate}
               onChange={(e) => setExpiryDate(e.target.value)}
             />
