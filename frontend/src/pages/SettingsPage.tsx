@@ -64,13 +64,15 @@ export default function SettingsPage() {
   function switchHousehold(hid: number) {
     if (hid === currentHid) return
     setHouseholdId(hid)
-    qc.invalidateQueries()
+    // 가구 스코프 쿼리는 키에 householdId 가 들어가 새 가구는 새 캐시 버킷으로 자동 재조회된다.
+    // 여기서 전체 invalidate 하면 옛 가구 키가 새 헤더로 재조회돼 캐시가 오염되므로 하지 않는다.
     navigate('/')
   }
 
   function logout() {
     clearAuth()
     skipSilentLogin() // 명시적 로그아웃 — 로그인 화면이 자동 재로그인하지 않게
+    qc.clear() // (FE-2) 다음 계정 로그인 시 이전 계정 캐시가 비치지 않게 전부 비움
     navigate('/login', { replace: true })
   }
 

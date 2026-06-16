@@ -127,7 +127,7 @@ public class StockService {
     /** 수량 증감(+/-). 결과 음수 거부. 0이면 묶음 소프트삭제 + cascade. */
     @Transactional
     public StockResponse adjust(Long userId, Long stockId, AdjustQuantityRequest req) {
-        Stock stock = requireOwned(stockId);
+        Stock stock = requireOwnedForUpdate(stockId); // (C-2) 동시 증감 직렬화
         BigDecimal delta = req.delta();
         if (delta.signum() == 0) throw ApiException.badRequest("변화량이 0입니다.");
         BigDecimal newQty = stock.getQuantity().add(delta);
@@ -194,6 +194,17 @@ public class StockService {
     private Stock requireOwned(Long stockId) {
         Long hid = TenantContext.require();
         Stock s = stockRepository.findByIdWithRefs(stockId)
+                .orElseThrow(() -> ApiException.notFound("재고를 찾을 수 없습니다."));
+        if (!s.getHousehold().getId().equals(hid) || s.getDeletedAt() != null) {
+            throw ApiException.notFound("재고를 찾을 수 없습니다.");
+        }
+        return s;
+    }
+
+    /** requireOwned 와 동일하나 묶음 행에 쓰기 락을 건다(수량 증감 경합 방지). 연관은 지연 로딩. */
+    private Stock requireOwnedForUpdate(Long stockId) {
+        Long hid = TenantContext.require();
+        Stock s = stockRepository.findByIdForUpdate(stockId)
                 .orElseThrow(() -> ApiException.notFound("재고를 찾을 수 없습니다."));
         if (!s.getHousehold().getId().equals(hid) || s.getDeletedAt() != null) {
             throw ApiException.notFound("재고를 찾을 수 없습니다.");

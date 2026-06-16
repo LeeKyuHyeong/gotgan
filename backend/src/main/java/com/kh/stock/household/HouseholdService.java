@@ -6,6 +6,7 @@ import com.kh.stock.domain.*;
 import com.kh.stock.domain.type.MembershipRole;
 import com.kh.stock.household.dto.*;
 import com.kh.stock.repository.*;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -159,6 +160,13 @@ public class HouseholdService {
     public InviteResponse regenerateInvite(Long userId, Long householdId) {
         Household household = requireOwner(userId, householdId);
         household.setInviteCode(generateUniqueCode());
+        try {
+            // (C-1) 동시 재발급으로 같은 코드가 겹치면 UNIQUE(invite_code) 위반 →
+            // 커밋 전에 노출시켜 500 대신 재시도 가능한 409 로 변환.
+            householdRepository.saveAndFlush(household);
+        } catch (DataIntegrityViolationException e) {
+            throw ApiException.conflict("초대코드 재발급이 겹쳤어요. 다시 시도해 주세요.");
+        }
         return buildInvite(household);
     }
 

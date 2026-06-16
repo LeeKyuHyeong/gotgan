@@ -1,7 +1,9 @@
 package com.kh.stock.repository;
 
 import com.kh.stock.domain.Stock;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -82,6 +84,14 @@ public interface StockRepository extends JpaRepository<Stock, Long> {
             where s.id = :id
             """)
     Optional<Stock> findByIdWithRefs(@Param("id") Long id);
+
+    /**
+     * (C-2) 수량 증감용 — 묶음 행에 쓰기 락을 걸어 같은 묶음의 동시 adjust 를 직렬화한다.
+     * 락 없이 read-modify-write 하면 동시 요청이 서로의 증감을 덮어써(lost update) 수량이 어긋난다.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select s from Stock s where s.id = :id")
+    Optional<Stock> findByIdForUpdate(@Param("id") Long id);
 
     /** 가구 삭제 정리. */
     void deleteByHousehold_Id(Long householdId);

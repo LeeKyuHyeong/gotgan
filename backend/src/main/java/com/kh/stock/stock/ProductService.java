@@ -9,6 +9,7 @@ import com.kh.stock.repository.HouseholdRepository;
 import com.kh.stock.repository.ProductGroupRepository;
 import com.kh.stock.repository.ProductRepository;
 import com.kh.stock.stock.dto.NewProductInput;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -47,6 +48,7 @@ public class ProductService {
     @Transactional
     public Product resolveOrCreate(Long hid, NewProductInput in) {
         String name = in.name().trim();
+        String unit = StringUtils.hasText(in.unit()) ? in.unit().trim() : null; // (V-4) 공백 정규화
         Product existing = productRepository.findByHousehold_IdAndName(hid, name).orElse(null);
         ProductGroup group = resolveGroup(hid, in.groupId(), in.groupName());
         Category category = resolveCategory(in.categoryId());
@@ -54,7 +56,7 @@ public class ProductService {
         if (existing != null) {
             // 되살리기(소프트삭제였다면) + 속성은 새 입력으로 갱신(되살리기 시 최신 입력 우선)
             existing.setDeletedAt(null);
-            existing.setUnit(in.unit());
+            existing.setUnit(unit);
             if (category != null) existing.setCategory(category);
             if (group != null) existing.setProductGroup(group);
             return existing;
@@ -62,13 +64,23 @@ public class ProductService {
         Product p = new Product();
         p.setHousehold(householdRepository.getReferenceById(hid));
         p.setName(name);
-        p.setUnit(in.unit());
+        p.setUnit(unit);
         p.setCategory(category);
         p.setProductGroup(group);
-        return productRepository.save(p);
+        try {
+            // (C-3) 같은 이름 품목 동시 생성 경합 — UNIQUE(household_id, name) 위반을
+            // 커밋 전에 노출시켜 500 대신 재시도 가능한 409 로 변환.
+            return productRepository.saveAndFlush(p);
+        } catch (DataIntegrityViolationException e) {
+            throw ApiException.conflict("같은 이름의 품목이 방금 추가됐어요. 다시 시도해 주세요.");
+        }
     }
 
     private ProductGroup resolveGroup(Long hid, Long groupId, String groupName) {
+        // (V-2) 기존 그룹 선택과 새 그룹 이름을 동시에 주면 의도가 모호 — 하나만 허용.
+        if (groupId != null && StringUtils.hasText(groupName)) {
+            throw ApiException.badRequest("그룹은 기존 선택 또는 새 이름 중 하나만 지정하세요.");
+        }
         if (groupId != null) {
             ProductGroup g = groupRepository.findById(groupId)
                     .orElseThrow(() -> ApiException.badRequest("존재하지 않는 그룹입니다."));

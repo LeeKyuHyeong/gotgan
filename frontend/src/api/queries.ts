@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
-import { setHouseholdId, setToken } from '../lib/auth'
+import { getHouseholdId, setHouseholdId, setToken } from '../lib/auth'
 import type {
   AdminCategoryRequestResponse,
   AdminCategoryResponse,
@@ -180,7 +180,7 @@ export function useRegenerateInvite(householdId: number) {
 // ---------- 홈 / 분류 / 위치 ----------
 export function useHome() {
   return useQuery({
-    queryKey: ['home'],
+    queryKey: ['home', getHouseholdId()],
     queryFn: async () => (await api.get<HomeResponse>('/api/home')).data,
   })
 }
@@ -196,7 +196,7 @@ export function useCategories() {
 // ---------- 분류 추가 요청 ----------
 export function useCategoryRequests() {
   return useQuery({
-    queryKey: ['categoryRequests'],
+    queryKey: ['categoryRequests', getHouseholdId()],
     queryFn: async () =>
       (await api.get<CategoryRequestResponse[]>('/api/category-requests')).data,
   })
@@ -213,7 +213,7 @@ export function useCreateCategoryRequest() {
 
 export function useLocations() {
   return useQuery({
-    queryKey: ['locations'],
+    queryKey: ['locations', getHouseholdId()],
     queryFn: async () => (await api.get<LocationResponse[]>('/api/locations')).data,
   })
 }
@@ -331,7 +331,7 @@ export function useAdminDeleteCategory() {
 // ---------- 이력 ----------
 export function useHistory(page = 0) {
   return useQuery({
-    queryKey: ['history', page],
+    queryKey: ['history', getHouseholdId(), page],
     queryFn: async () =>
       (await api.get<PageResponse<HistoryResponse>>('/api/history', { params: { page } })).data,
   })
@@ -342,7 +342,7 @@ export function useHistory(page = 0) {
 /** 전체 보기: 그룹/품목 합산 트리. */
 export function useInventory(q?: string) {
   return useQuery({
-    queryKey: ['inventory', q ?? ''],
+    queryKey: ['inventory', getHouseholdId(), q ?? ''],
     queryFn: async () =>
       (await api.get<InventoryResponse>('/api/inventory', { params: q ? { q } : undefined })).data,
   })
@@ -351,7 +351,7 @@ export function useInventory(q?: string) {
 /** 위치 상세: 그 위치의 묶음 평면 목록. */
 export function useLocationStock(locationId: number) {
   return useQuery({
-    queryKey: ['locationStock', locationId],
+    queryKey: ['locationStock', getHouseholdId(), locationId],
     queryFn: async () =>
       (await api.get<StockResponse[]>('/api/stock', { params: { locationId } })).data,
     enabled: !!locationId,
@@ -380,7 +380,7 @@ export function useStockHistory(stockId: number) {
 /** 재고 있는 품목 picker. */
 export function useProducts(q?: string) {
   return useQuery({
-    queryKey: ['products', q ?? ''],
+    queryKey: ['products', getHouseholdId(), q ?? ''],
     queryFn: async () =>
       (await api.get<ProductPickerResponse[]>('/api/products', { params: q ? { q } : undefined })).data,
   })
