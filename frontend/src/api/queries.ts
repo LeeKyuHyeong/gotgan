@@ -361,7 +361,7 @@ export function useLocationStock(locationId: number) {
 /** 묶음 단건. */
 export function useStock(stockId: number) {
   return useQuery({
-    queryKey: ['stock', stockId],
+    queryKey: ['stock', getHouseholdId(), stockId],
     queryFn: async () => (await api.get<StockResponse>(`/api/stock/${stockId}`)).data,
     enabled: !!stockId,
   })
@@ -370,7 +370,7 @@ export function useStock(stockId: number) {
 /** 묶음 변동 이력(편집 화면 인라인). */
 export function useStockHistory(stockId: number) {
   return useQuery({
-    queryKey: ['stockHistory', stockId],
+    queryKey: ['stockHistory', getHouseholdId(), stockId],
     queryFn: async () =>
       (await api.get<HistoryResponse[]>(`/api/stock/${stockId}/history`)).data,
     enabled: !!stockId,
@@ -389,7 +389,7 @@ export function useProducts(q?: string) {
 /** 그룹 picker. */
 export function useProductGroups() {
   return useQuery({
-    queryKey: ['productGroups'],
+    queryKey: ['productGroups', getHouseholdId()],
     queryFn: async () => (await api.get<ProductGroupResponse[]>('/api/product-groups')).data,
   })
 }
@@ -419,8 +419,8 @@ export function useUpdateStock(stockId: number) {
       (await api.patch<StockResponse>(`/api/stock/${stockId}`, body)).data,
     onSuccess: () => {
       invalidateStockViews(qc)
-      qc.invalidateQueries({ queryKey: ['stock', stockId] })
-      qc.invalidateQueries({ queryKey: ['stockHistory', stockId] })
+      qc.invalidateQueries({ queryKey: ['stock', getHouseholdId(), stockId] })
+      qc.invalidateQueries({ queryKey: ['stockHistory', getHouseholdId(), stockId] })
     },
   })
 }
@@ -433,8 +433,8 @@ export function useDeleteStock() {
     },
     onSuccess: (_, stockId) => {
       invalidateStockViews(qc)
-      qc.invalidateQueries({ queryKey: ['stock', stockId] })
-      qc.invalidateQueries({ queryKey: ['stockHistory', stockId] })
+      qc.invalidateQueries({ queryKey: ['stock', getHouseholdId(), stockId] })
+      qc.invalidateQueries({ queryKey: ['stockHistory', getHouseholdId(), stockId] })
     },
   })
 }
@@ -466,7 +466,7 @@ function patchStockQty(qc: ReturnType<typeof useQueryClient>, stockId: number, d
   qc.setQueriesData<StockResponse[]>({ queryKey: ['locationStock'] }, (old) =>
     old?.map((s) => (s.id === stockId ? { ...s, quantity: s.quantity + delta } : s)),
   )
-  qc.setQueryData<StockResponse>(['stock', stockId], (old) =>
+  qc.setQueryData<StockResponse>(['stock', getHouseholdId(), stockId], (old) =>
     old ? { ...old, quantity: old.quantity + delta } : old,
   )
 }
@@ -481,7 +481,7 @@ export function useAdjustStock() {
     onMutate: async ({ stockId, delta }) => {
       await qc.cancelQueries({ queryKey: ['inventory'] })
       await qc.cancelQueries({ queryKey: ['locationStock'] })
-      await qc.cancelQueries({ queryKey: ['stock', stockId] })
+      await qc.cancelQueries({ queryKey: ['stock', getHouseholdId(), stockId] })
       patchStockQty(qc, stockId, delta)
       return { stockId, delta }
     },
@@ -491,8 +491,8 @@ export function useAdjustStock() {
     },
     onSettled: (_d, _e, vars) => {
       qc.invalidateQueries({ queryKey: ['history'] })
-      qc.invalidateQueries({ queryKey: ['stockHistory', vars.stockId] })
-      qc.invalidateQueries({ queryKey: ['stock', vars.stockId] })
+      qc.invalidateQueries({ queryKey: ['stockHistory', getHouseholdId(), vars.stockId] })
+      qc.invalidateQueries({ queryKey: ['stock', getHouseholdId(), vars.stockId] })
       // 연타 중 "마지막 settle"에서만 합산/위치 뷰 재동기화(중간 깜빡임 방지).
       // 주의: onSettled는 이 뮤테이션이 'success'로 전이되기 전에 실행되므로 isMutating은
       // 자기 자신을 포함(최소 1) → "내가 마지막"은 ===0 이 아니라 <=1 로 판정해야 한다(===0은 영원히 거짓).
