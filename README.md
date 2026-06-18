@@ -11,9 +11,9 @@
 | [`TODO.md`](TODO.md) | 작업 현황 — 남은 작업 + 완료 이력 |
 | `D:\server-infra.md` | **운영 인프라 SSOT**(로컬 전용, git 미추적) — 서버/포트/배포 절차/CI/CD/카카오 앱 구성/운영 수칙 |
 | [`db/SCHEMA.md`](db/SCHEMA.md) | DB 스키마(8테이블) 설계. 실제 스키마는 Flyway(`backend/.../db/migration`)가 소유 |
-| [`inventory_app_screens.html`](inventory_app_screens.html) | 초기 화면 시안(14화면) |
 
 > 초기 설계 문서 `stock.md`는 전 항목 결정·구현 완료로 폐지(2026-06-06). 핵심 결정은 아래 표로 이관.
+> 초기 화면 시안 `inventory_app_screens.html`(14화면)은 구현 완료로 삭제(디자인 토큰은 `frontend/src/index.css @theme`에 정착).
 
 ## 설계 결정 (확정, 기록용)
 
