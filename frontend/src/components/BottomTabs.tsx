@@ -14,7 +14,7 @@ export function BottomTabs() {
   const expiring = home?.expiringSoonCount ?? 0
 
   return (
-    <nav className="sticky bottom-0 flex border-t border-line bg-surface">
+    <nav className="sticky bottom-0 flex border-t border-line bg-surface pb-[env(safe-area-inset-bottom)]">
       {tabs.map((t) => (
         <NavLink
           key={t.to}

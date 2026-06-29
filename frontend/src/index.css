@@ -40,3 +40,19 @@ body {
   margin: 0 auto;
   background: var(--color-bg);
 }
+
+/* ── 모바일 높이 보정 ───────────────────────────────────────────────
+   min-h-screen / h-screen 는 100vh(주소창 포함) 라서 모바일에서 화면보다
+   커진다 → 하단 버튼이 fold 아래로 밀려 스크롤해야 보임.
+   100dvh(실제 보이는 높이)로 한 번에 재정의해 모든 화면을 함께 고친다.
+   (Tailwind 유틸리티 레이어 뒤에 와서 같은 클래스명을 덮어쓴다) */
+@layer utilities {
+  .min-h-screen { min-height: 100dvh; }
+  .h-screen { height: 100dvh; }
+  .max-h-screen { max-height: 100dvh; }
+}
+
+/* 하단 고정 영역(탭바·버튼)이 홈 인디케이터에 가리지 않도록 안전영역 확보 */
+.pb-safe {
+  padding-bottom: calc(var(--pb-base, 0px) + env(safe-area-inset-bottom));
+}

@@ -89,7 +89,7 @@ export default function LoginPage() {
         </p>
       </div>
 
-      <div className="px-6 pb-10">
+      <div className="px-6 pb-[calc(2.5rem+env(safe-area-inset-bottom))]">
         <Button variant="kakao" onClick={kakaoLogin}>
           💬 카카오로 시작하기
         </Button>
