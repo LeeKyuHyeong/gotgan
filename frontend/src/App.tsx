@@ -54,7 +54,10 @@ function RequireHousehold() {
     me.households.map((h) => h.householdId),
   )
   if (next != null) setHouseholdId(next)
-  return <MainLayout />
+  // 가드는 Outlet 만 — 탭바(MainLayout)는 아래 라우트 그룹에서만 감싼다.
+  // 재고 추가/수정 등 하위 폼 화면은 탭바 없이 전체화면으로 떠야
+  // sticky 제출 버튼이 탭바에 가리지 않는다.
+  return <Outlet />
 }
 
 function MainLayout() {
@@ -94,14 +97,19 @@ export default function App() {
         </Route>
 
         <Route element={<RequireHousehold />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/all" element={<AllItemsPage />} />
-          <Route path="/history" element={<HistoryPage />} />
-          <Route path="/me" element={<SettingsPage />} />
-          <Route path="/locations" element={<LocationManagePage />} />
+          {/* 탭바 있는 메인 화면들 */}
+          <Route element={<MainLayout />}>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/all" element={<AllItemsPage />} />
+            <Route path="/history" element={<HistoryPage />} />
+            <Route path="/me" element={<SettingsPage />} />
+            <Route path="/locations" element={<LocationManagePage />} />
+            <Route path="/locations/:id" element={<LocationDetailPage />} />
+          </Route>
+          {/* 탭바 없는 전체화면 폼들 — 뒤로가기(‹)로 진입. sticky 제출 버튼이
+              탭바에 가리지 않도록 MainLayout 밖에 둔다 */}
           <Route path="/locations/new" element={<LocationFormPage />} />
           <Route path="/locations/:id/edit" element={<LocationFormPage />} />
-          <Route path="/locations/:id" element={<LocationDetailPage />} />
           <Route path="/stock/new" element={<StockAddPage />} />
           <Route path="/stock/:id/edit" element={<StockEditPage />} />
         </Route>

@@ -41,18 +41,18 @@ body {
   background: var(--color-bg);
 }
 
-/* ── 모바일 높이 보정 ───────────────────────────────────────────────
-   min-h-screen / h-screen 는 100vh(주소창 포함) 라서 모바일에서 화면보다
-   커진다 → 하단 버튼이 fold 아래로 밀려 스크롤해야 보임.
-   100dvh(실제 보이는 높이)로 한 번에 재정의해 모든 화면을 함께 고친다.
-   (Tailwind 유틸리티 레이어 뒤에 와서 같은 클래스명을 덮어쓴다) */
+/* ── 모바일 높이 보정 (안드로이드 PWA 하단 짤림 해결) ──────────────────
+   min-h-screen / h-screen 는 100vh 기준인데, 모바일(특히 안드로이드 standalone
+   PWA)에서 100vh·100dvh 는 하단 시스템 내비게이션 바 영역까지 포함한다.
+   → 셸이 실제 보이는 화면보다 길어져 하단 버튼이 내비바 아래로 잘리고 스크롤됨.
+   해결: 뷰포트 단위 대신 height:100% 체인을 쓴다. html·body·#root 가 위에서
+   height:100% 라, 100% 는 '실제 보이는 영역' 에 정확히 맞는다(내비바 오차 없음).
+   (Tailwind 유틸리티 레이어 뒤에 와서 같은 클래스명을 덮어쓴다)
+   - min-height:100% → splash 는 꽉 채우고, 긴 리스트는 늘어나며 스크롤 가능
+   - height:100%     → 로딩 화면 등 고정 높이
+   - max-height:100% → 피커 오버레이(내부 스크롤) */
 @layer utilities {
-  .min-h-screen { min-height: 100dvh; }
-  .h-screen { height: 100dvh; }
-  .max-h-screen { max-height: 100dvh; }
-}
-
-/* 하단 고정 영역(탭바·버튼)이 홈 인디케이터에 가리지 않도록 안전영역 확보 */
-.pb-safe {
-  padding-bottom: calc(var(--pb-base, 0px) + env(safe-area-inset-bottom));
+  .min-h-screen { min-height: 100%; }
+  .h-screen { height: 100%; }
+  .max-h-screen { max-height: 100%; }
 }
