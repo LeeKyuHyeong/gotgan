@@ -8,50 +8,77 @@
 
 ## 🔜 남은 작업
 
-**없음 — 계획한 전 기능 구현·운영 검증 완료 (2026-06-06).** 이후는 운영 유지보수만.
+### 🧪 엣지케이스 테스트 목록 — 가구(household) 흐름 중심
+
+> 범례: `[x]` = 테스트 이미 존재 / `[ ]` = 작성 필요 · `(BE)` 백엔드 · `(FE)` 프론트
+> 기존 커버리지: `HouseholdServiceJoinTest`, `HouseholdServiceInviteTest`, `TenantInterceptorTest`(BE), `lib/household.test.ts`(FE)
+
+#### 1. 카카오 로그인 → 온보딩 진입 (`/api/auth/kakao`, `/api/me`, LoginPage·KakaoCallbackPage·App 가드)
+- [ ] (BE) 가구 0개 사용자 로그인 → `needsOnboarding=true` + `households=[]` 반환
+- [ ] (BE) 가구 1개 이상 사용자 → `needsOnboarding=false` (항상 `households.isEmpty()`와 일치 보장)
+- [ ] (BE) 카카오 토큰 교환 실패(KOE010 등) → 401 + 원인 메시지 노출(만료 아님, 인터셉터가 안 가로챔)
+- [ ] (FE) silent 로그인(`prompt=none`) 실패 → `skipSilentLogin()` 세팅, 무한 재인가 루프 없음
+- [ ] (FE) 로그인 직후 401/네트워크 에러 → 60초 내 silent 재시도 금지(스로틀)
+- [ ] (FE) StrictMode 이중 마운트 시 같은 `code` 중복 교환 안 함
+- [ ] (FE) 콜백 `code` 누락 → 에러 화면(흰 화면 X)
+- [ ] (FE) 콜백 `error`+`error_description` 동시 노출(취소/거부 사유 표시) ⚠️ 현재 `error`만 표시
+- [ ] (FE) `needsOnboarding=true`인데 캐시상 가구 존재 → 온보딩 갇힘/깜빡임 없이 `/`로 정정
+- [ ] (FE) 카카오 닉네임 미동의(표시명 null) → 온보딩에서 표시명 먼저 강제 입력
+
+#### 2. 가구 생성 (`POST /api/households`, CreateHouseholdPage)
+- [ ] (BE) 이름 공백/null/공백만 → 400(@NotBlank), 50자 초과 → 거부
+- [ ] (BE) 생성 시 OWNER 멤버십 + 기본 위치 4개 + 초대코드가 한 트랜잭션으로 원자적 저장(중간 실패 시 전부 롤백)
+- [ ] (BE) 초대코드 생성 충돌 시 재시도 후 유니크 코드 확정(do-while에 최대 시도 한도 ⚠️ 무한루프 방지)
+- [ ] (BE) 표시명 없는 사용자가 곧바로 생성 호출 → 표시명 강제(또는 명확한 거부)
+- [ ] (FE) 생성 직후 `householdId` 자동 설정 + `/households/{id}/invite` 이동
+- [ ] (FE) 생성 후 뒤로가기로 온보딩 복귀 시 상태 불일치(이미 가구 있음) 없음
+- [ ] (BE) (정책 결정 필요) 한 사용자의 가구 생성 개수 상한 ⚠️ 현재 무제한
+
+#### 3. 초대코드 발급/재발급 (`POST /api/households/{id}/invite/regenerate`, InvitePage)
+- [x] (BE) 코드 형식: 6자, 혼동 글자(I·O·L·0·1) 제외, `SecureRandom`
+- [x] (BE) 동시 재발급으로 코드 충돌 → `DataIntegrityViolationException` → 409 변환(`saveAndFlush`)
+- [ ] (BE) 가족장(OWNER)만 재발급 가능, MEMBER → 403
+- [ ] (BE) 재발급 시 이전 코드 즉시 무효화 여부 결정 ⚠️ 현재 영구 유효(이전 링크 계속 합류 가능)
+- [ ] (BE) 코드 만료(TTL) 정책 결정/테스트 ⚠️ 현재 만료 없음
+- [ ] (FE) 6자/허용 글자 입력 검증(maxLength·정규식) — 잘못된 코드 즉시 차단
+- [ ] (FE) 409 수신 시 사용자 안내(자동 또는 수동 재시도)
+
+#### 4. 가구 합류 (`POST /api/households/join`, JoinHouseholdPage, `/join?code=`)
+- [x] (BE) 정원(maxMembers=4) 초과 → 409, 멤버십 미생성(`never().save()`)
+- [x] (BE) 비관락(`findByInviteCodeForUpdate`)으로 동시 합류 직렬화
+- [x] (BE) 코드 정규화(소문자·공백 trim+upper) 후 조회
+- [x] (BE) 존재하지 않는 코드 → 404
+- [x] (BE) 이미 멤버인 사용자 재합류 → 멱등(기존 가구 반환, 중복 멤버십 X)
+- [ ] (BE) 동시 N명 합류로 정원 경합 — UNIQUE(user_id, household_id) 위반 없이 정확히 정원까지만 성공(멀티스레드 시뮬레이션)
+- [ ] (BE) 신규 합류자 role = MEMBER 고정
+- [ ] (FE) 표시명 없는 사용자 합류 → 표시명 저장 후 합류, 표시명 저장만 성공/합류 실패 시 재시도 일관성
+- [x] (FE) `/join?code=XXX` 딥링크 → 코드 자동 입력 + 1회 소비(`clearPendingInviteCode`) — `household.test.ts`
+- [ ] (FE) 정원 초과(409) 후 멤버 이탈로 빈자리 생기면 재시도 가능
+
+#### 5. 가구 관리 — 이름변경·내보내기·이양·나가기·삭제 (HouseholdManagePage)
+- [ ] (BE) 이름변경: OWNER만, trim·50자 제한
+- [ ] (BE) 멤버 내보내기: OWNER만, 자기 자신 내보내기 불가, 없는 멤버 → 404
+- [ ] (BE) 소유권 이양: OWNER만, 자신에게 이양 불가, 대상이 현재 멤버여야 함, 이양 후 역할 스왑(OWNER↔MEMBER)
+- [ ] (BE) 나가기: OWNER는 불가(먼저 이양 필요), MEMBER는 가능
+- [ ] (BE) 가구 삭제: OWNER만, cascade 순서(이력→재고→상품→그룹→위치→분류요청→멤버십→가구)로 FK 위반 없이 전체 정리
+- [ ] (BE) 삭제 후 잔존 데이터 0건 검증(가구 스코프 전 테이블)
+- [ ] (FE) 내보내기/이양/삭제 후 `/api/me` 및 가구 캐시 무효화 → 화면 정합
+- [ ] (FE) 내보내진 멤버가 해당 가구로 요청 시 403 → 가구 선택/온보딩으로 자동 복귀
+
+#### 6. 테넌트 격리 (`X-Household-Id`, TenantInterceptor·TenantContext)
+- [x] (BE) 헤더 없음 → 통과(/api/me·온보딩 등)
+- [x] (BE) 헤더 비숫자 → 400
+- [x] (BE) 미인증 + 헤더 → 401
+- [x] (BE) 멤버 아닌 가구 id → 403, TenantContext 미설정
+- [x] (BE) 멤버인 가구 → TenantContext 설정, afterCompletion에서 clear
+- [ ] (BE) 요청 처리 중 예외 발생 시에도 ThreadLocal 정리(thread pool 재사용 시 이전 householdId 누수 없음) ⚠️
+- [ ] (BE) 가구 스코프 엔드포인트를 헤더 없이 호출 → `TenantContext.require()`가 명확한 에러 반환
+- [ ] (BE) A가구 멤버가 헤더로 B가구 id 위조 → 403(데이터 누출 없음) — 핵심 멀티테넌트 회귀 가드
+- [ ] (BE) 가구 전환 후 직전 가구 데이터가 응답에 섞이지 않음(서비스 계층 household_id 직접 필터 검증)
 
 ---
 
-## ✅ 완료 이력 (요약 — 상세는 git log)
-
-### 코어 구현 (~2026-06-02)
-- DB 스키마 8테이블 + Flyway + 공통분류 시드 / 화면 시안 14화면
-- 백엔드: 카카오 로그인+자체 JWT, 테넌트 격리(`X-Household-Id`), 온보딩(가구 생성/합류/초대코드 — 상시 코드 1개+재발급, 6자 영숫자, max_members 4), 위치·아이템·이력·분류 API, 변동이력 자동기록, 소프트삭제, 곧만료 D-3
-- 프론트: 로그인·온보딩·초대·홈·위치상세·전체/검색·아이템 추가/편집·이력·내정보·위치 관리
-- **분류 추가 요청**(커뮤니티 요청 → 운영자 승인) + **플랫폼 어드민**(SYSTEM_ADMIN — 요청관리·공통분류 마스터 CRUD, `/error` permitAll 보안버그 수정 포함. 운영자 부여는 운영 DB `UPDATE app_user SET role='SYSTEM_ADMIN'`)
-- **가구 관리**(이름변경·멤버 내보내기·소유권 이양·나가기·삭제 cascade) / **표시명(닉네임) 입력**(카카오 동의항목 대체)
-
-### 다듬기 (06-03)
-- 분류 **색상**(V3 마이그레이션 + 어드민 피커 + ItemRow 틴트) / 아이템별 변동 이력 인라인 표시
-- 수량 증감 **낙관적 갱신**(실패 시 inverse-delta 롤백) + **당겨서 새로고침**(홈/전체/위치상세/이력)
-- 앱 이름 **곳간** 확정 / 초대코드 **카카오톡 공유**(JS SDK, 미지원 시 Web Share→복사 폴백)
-- 배포 준비: client-secret env 분리, compose+Dockerfile(멀티스테이지·비루트), nginx conf, CORS/redirect env화
-
-### 배포·운영 (06-04~06)
-- **운영 배포 가동**: HTTPS(certbot)·CI/CD(main 푸시 자동배포)·운영 카카오 앱 `kh_stock`·DBeaver 3312
-- 배포 후 안정화: 온보딩 무한루프 수정(`refetchType:'all'`), `/api/me` 실패 시 에러 화면+로그아웃 탈출구
-- **카톡 딥링크 합류**: 공유 버튼 → `/join?code=` → 코드 자동입력 원탭 합류 — 실기기 e2e 완료 (4019 트러블슈팅: `D:\server-infra.md`)
-- **곧만료 Web Push**(표준 VAPID): `push_subscription`(V4)·스케줄러(9시, 410 자동정리)·`sw.js`·PWA manifest·내정보 알림 토글. 인앱 브라우저는 푸시 API 없음 → 크롬 1회 ON으로 충분
-- **세션 유지**: JWT_TTL 30일 + 무클릭 자동 로그인(`prompt=none`, 실패 시 60초 재시도 금지). 인앱 브라우저 localStorage 증발 → PWA 설치 안내가 근본 해법
-- 인프라: 컨테이너 TZ=Asia/Seoul 고정, `stock-*`→`gotgan-*` rename, 인프라 문서 `D:\server-infra.md`로 SSOT 일원화
-- **자주 쓰는 품목 프리셋**(06-06): 아이템 등록 시 텍스트 입력 유지 + 선택 가능 — 카탈로그 198개(`frontend/src/lib/presets.ts`, 이름·이모지·분류·기본단위), PresetPicker 오버레이(분류별 그룹+검색), 입력 중 실시간 추천 칩(부분일치 8개). 선택 시 분류 자동 매칭 + 단위는 빈 칸일 때만 채움. 공통 분류 **'곡물·면'(🌾) V5 신설**(쌀·면류가 '기타'로 새지 않게, 양념 다음 정렬) — 운영 적용·실기기 확인 완료
-- **로그인 401 인터셉터 버그픽스**(06-06): `/api/auth/*`의 401(교환 실패)이 전역 인터셉터에 가로채여 `/login` 강제 이동 → 에러 메시지가 영영 안 보이던 문제. auth 엔드포인트는 통과시켜 콜백 화면이 원인(KOE010 등)을 표시하도록 수정
-- **분류 색상 운영 e2e 확인**(06-06): 목록 틴트·폼 색 점·어드민 색 변경 반영 전부 실기기 검증. 이때 **운영 첫 SYSTEM_ADMIN 부여**(규형 id1, 운영 DB UPDATE) — role이 JWT claim에 들어가서 부여 후 재로그인 필요
-- **Web Push 운영 수신 확인**(06-06): 매일 9시(KST) 가구별 D-3 요약 수신 확인 완료 — 컨테이너 TZ 고정(`6a3dd86`) 후 정시 발송 동작. 미수신 시 진단: `docker logs gotgan-app | grep 곧만료`
-
-### 드롭/대체 결정 (기록)
-- **SSE 드롭** — refetch-on-focus + optimistic + pull-to-refresh로 '열 때 항상 최신' 충족
-- **아이템 사진 첨부 드롭**(06-06 확정, 구 v2 보류) — 업로드·저장소·썸네일 인프라 대비 가치 낮음. 텍스트+이모지로 충분
-- **Hibernate `@Filter` 하드닝 드롭**(06-06) — 기능 추가 계획이 없어 회귀 방지 실익 없음. 서비스 계층 수동 격리(+`requireOwnedItem` 소유 검증) 유지. 단, **새 쿼리를 추가하게 되면 `household_id` 필터를 반드시 직접 챙길 것**
-- **카카오 동의항목(닉네임/프로필)** — 표시명 직접 입력으로 대체, 설정 불필요
-- 로컬 앱 client-secret 노출 건 — 운영은 별도 앱(kh_stock)이라 무관, 재발급은 선택
-- 초기 설계 문서 `stock.md` 폐지(06-06) — 확정 결정 표는 `README.md`로 이관
-
----
-
-## 🧪 알아둘 점
-- 로컬 테스트 데이터 존재(유저 현규/예진/outsider, 가구 1, 아이템 등). 정리하려면 `db/` 재적용 또는 `TRUNCATE`.
-- 백엔드 코드 변경 후 8083 재시작 필요. 프론트 `.env.local` 변경 시 dev 서버 재시작.
-- 테스트 코드: 기본 `contextLoads`만 있음(DB 필요). 비즈니스 로직 테스트 미작성.
-- 개발용 로그인은 dev 프로파일 전용(`dev-token`, 어드민은 `"admin":true`) — 운영 빌드에서 제거됨.
-- **로컬 카카오 실로그인**: 로컬 앱(kh_stock_local)은 Client Secret **필수** — env 없이 백엔드 띄우면 토큰 교환이 KOE010으로 실패. Git Bash에서 `export KAKAO_CLIENT_SECRET=<콘솔 값>` 후 `./gradlew bootRun` (PowerShell은 `$env:KAKAO_CLIENT_SECRET='...'`). secret 불필요한 개발용 로그인이 더 간편.
+#### 우선순위 메모
+- **High**: 정원 동시 경합(4-6), cascade 삭제 정합(5), 타가구 id 위조 차단(6), needsOnboarding 일관성(1)
+- **Medium**: ThreadLocal 예외 누수(6), 초대코드 만료/무효화 정책(3), 표시명 저장-합류 부분실패(4)
+- **Low**: 프론트 코드 형식 검증(3), error_description 노출(1), 가구 생성 개수 상한(2)
